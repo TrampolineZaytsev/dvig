@@ -1,0 +1,32 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" fill="#eaf0eb"/>
+  <path d="M0 565L170 455L330 508L515 408L715 482L910 365L1200 520V760H0V565Z" fill="#dfe8e3"/>
+
+  <rect x="86" y="68" width="1028" height="600" rx="34" fill="#243c33"/>
+  <rect x="120" y="112" width="960" height="510" rx="22" fill="#fbfaf6"/>
+
+  <rect x="154" y="146" width="276" height="68" rx="14" fill="#3f705c"/>
+  <text x="185" y="191" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">ДВИГ</text>
+
+  <circle cx="276" cy="374" r="112" fill="#101716"/>
+  <circle cx="276" cy="299" r="34" fill="#fac47f"/>
+  <circle cx="222" cy="325" r="31" fill="#fac47f"/>
+  <circle cx="330" cy="325" r="31" fill="#fac47f"/>
+  <rect x="207" y="374" width="138" height="148" rx="28" fill="#cf735c"/>
+
+  <rect x="490" y="152" width="474" height="84" rx="18" fill="#47967c"/>
+  <text x="530" y="204" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">Кино сегодня · 5 мест</text>
+
+  <rect x="490" y="276" width="430" height="74" rx="16" fill="#f3ca61"/>
+  <text x="530" y="323" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="500">Настолки в антикафе</text>
+
+  <rect x="490" y="386" width="430" height="74" rx="16" fill="#83accb"/>
+  <text x="530" y="433" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="500">Лекция и прогулка</text>
+
+  <rect x="490" y="504" width="328" height="50" rx="25" fill="#e8f0ec"/>
+  <path d="M526 529L535 538L554 518" stroke="#2d5a4a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="574" y="537" fill="#2d5a4a" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="700">Проверенная встреча</text>
+
+  <rect x="836" y="548" width="228" height="58" rx="15" fill="#243c33"/>
+  <text x="879" y="586" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700">Подать заявку</text>
+</svg>
