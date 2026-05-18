@@ -14,6 +14,7 @@ import {
   Heart,
   InfoIcon,
   LogOut,
+  Menu,
   MapPin,
   Search,
   Send,
@@ -49,6 +50,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -157,10 +159,13 @@ export function EventBrowser() {
               webapp
             </Badge>
           </div>
-          <div className="grid gap-3 text-sm sm:grid-cols-3 lg:min-w-[520px]">
-            <Metric label="Заявки" value={joined.length} />
-            <Metric label="Сохранено" value={saved.length} />
-            <Metric label="Событий" value={events.length} />
+          <div className="flex items-center justify-end">
+            <AppMenu
+              savedCount={saved.length}
+              joinedCount={joined.length}
+              eventsCount={events.length}
+              onNavigate={setView}
+            />
           </div>
         </div>
       </header>
@@ -301,6 +306,115 @@ export function EventBrowser() {
         onJoin={(eventId) => toggleJoined(eventId)}
       />
     </main>
+  );
+}
+
+function AppMenu({
+  savedCount,
+  joinedCount,
+  eventsCount,
+  onNavigate,
+}: {
+  savedCount: number;
+  joinedCount: number;
+  eventsCount: number;
+  onNavigate: (view: AppView) => void;
+}) {
+  return (
+    <Sheet>
+      <SheetTrigger
+        aria-label="Открыть меню"
+        render={
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11 shrink-0 rounded-md border-[#c7c0b4]"
+          />
+        }
+      >
+        <Menu className="size-5" />
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-sm">
+        <SheetHeader>
+          <SheetTitle>Меню</SheetTitle>
+          <SheetDescription>Профиль, события и настройки ДВИГ.</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-3 px-4">
+          <MenuProfile />
+          <div className="grid grid-cols-3 gap-2">
+            <Metric label="Заявки" value={joinedCount} />
+            <Metric label="Сохранено" value={savedCount} />
+            <Metric label="Событий" value={eventsCount} />
+          </div>
+          <MenuAction
+            icon={UsersRound}
+            title="Мои события"
+            text={`${joinedCount} заявок · ${savedCount} сохранено`}
+            onClick={() => onNavigate("collection")}
+          />
+          <MenuAction
+            icon={ShieldCheck}
+            title="Безопасность"
+            text="Чек-ин, тревожная кнопка, доверенный контакт"
+            onClick={() => onNavigate("safety")}
+          />
+          <MenuAction
+            icon={UserCheck}
+            title="Профиль и след"
+            text="Скрыть профиль, архив данных, удаление"
+            onClick={() => onNavigate("profile")}
+          />
+          <MenuAction
+            icon={Settings}
+            title="Настройки"
+            text="Источники, Telegram, режим данных"
+            onClick={() => onNavigate("settings")}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function MenuProfile() {
+  return (
+    <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-4">
+      <div className="flex items-center gap-3">
+        <Avatar>
+          <AvatarFallback>А</AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-semibold">Алина</p>
+          <p className="text-sm text-[#56635d]">профиль проверяется · СПб</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MenuAction({
+  icon: Icon,
+  title,
+  text,
+  onClick,
+}: {
+  icon: typeof Search;
+  title: string;
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-start gap-3 rounded-md border border-[#d9d5cb] bg-white p-4 text-left transition hover:bg-[#f8f6f1]"
+      onClick={onClick}
+    >
+      <Icon className="mt-1 size-5 shrink-0 text-[#235646]" />
+      <span>
+        <span className="block font-semibold">{title}</span>
+        <span className="mt-1 block text-sm leading-5 text-[#56635d]">{text}</span>
+      </span>
+    </button>
   );
 }
 
