@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  BarChart3,
   BellRing,
   CalendarDays,
   Check,
@@ -17,10 +16,8 @@ import {
   Menu,
   MapPin,
   Search,
-  Send,
   Settings,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Star,
   Table2,
@@ -52,7 +49,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   buildTelegramDigest,
   categories,
@@ -170,77 +166,47 @@ export function EventBrowser() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[320px_1fr] lg:px-8">
-        <aside className="h-fit rounded-md border border-[#d9d5cb] bg-white p-4">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-5 text-[#235646]" />
-            <h1 className="text-xl font-semibold">ДВИГ webapp</h1>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-[#56635d]">
-            Поиск событий, ИИ-резюме, подборка, экспорт и Telegram-дайджест в одном
-            веб-интерфейсе. Данные пока демонстрационные.
-          </p>
-          <Separator className="my-4" />
-          <div className="space-y-4">
-            <label className="block text-sm font-medium">
-              Поиск
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6b746f]" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="кино, антикафе, лекция"
-                  className="rounded-md pl-9"
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="grid gap-5">
+          <div className="rounded-md border border-[#d9d5cb] bg-white p-4">
+            <div className="flex flex-col gap-5">
+              <div>
+                <Badge className="rounded-md bg-[#dbe9e2] text-[#235646] hover:bg-[#dbe9e2]">
+                  {filteredEvents.length} встреч найдено
+                </Badge>
+                <h1 className="mt-3 text-3xl font-semibold">Выберите мероприятие</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#56635d]">
+                  Категория и поиск здесь. Профиль, мои события, безопасность и экспорт
+                  вынесены в меню справа сверху.
+                </p>
+              </div>
+              <CategoryPicker value={category} onChange={setCategory} />
+              <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
+                <label className="block text-sm font-medium">
+                  Поиск
+                  <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6b746f]" />
+                    <Input
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="кино, антикафе, лекция"
+                      className="rounded-md pl-9"
+                    />
+                  </div>
+                </label>
+                <FilterSelect
+                  label="Дата"
+                  value={date}
+                  values={dates}
+                  onChange={(value) => setDate(value as DateFilter)}
+                />
+                <FilterSelect
+                  label="Формат"
+                  value={mood}
+                  values={moods}
+                  onChange={(value) => setMood(value as MoodFilter)}
                 />
               </div>
-            </label>
-
-            <FilterSelect
-              label="Дата"
-              value={date}
-              values={dates}
-              onChange={(value) => setDate(value as DateFilter)}
-            />
-            <FilterSelect
-              label="Формат"
-              value={mood}
-              values={moods}
-              onChange={(value) => setMood(value as MoodFilter)}
-            />
-          </div>
-        </aside>
-
-        <div>
-          <div className="rounded-md border border-[#d9d5cb] bg-white p-4">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <Badge className="rounded-md bg-[#dbe9e2] text-[#235646] hover:bg-[#dbe9e2]">
-                    {filteredEvents.length} встреч найдено
-                  </Badge>
-                  <h2 className="mt-3 text-3xl font-semibold">Городская афиша для встреч</h2>
-                </div>
-                <Tabs value={category} onValueChange={(value) => setCategory(value as CategoryFilter)}>
-                  <TabsList className="flex h-auto flex-wrap rounded-md bg-[#f0ede6] p-1">
-                    {categories.map((item) => (
-                      <TabsTrigger key={item} value={item} className="rounded-sm">
-                        {item}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </Tabs>
-              </div>
-              <Tabs value={view} onValueChange={(value) => setView(value as AppView)}>
-                <TabsList className="flex h-auto flex-wrap rounded-md bg-[#f0ede6] p-1">
-                  <AppTab value="search" icon={Search} label="Поиск" />
-                  <AppTab value="popular" icon={BarChart3} label="Популярное" />
-                  <AppTab value="collection" icon={Send} label="Подборка" />
-                  <AppTab value="export" icon={Download} label="Экспорт" />
-                  <AppTab value="safety" icon={ShieldCheck} label="Безопасность" />
-                  <AppTab value="profile" icon={UserCheck} label="Профиль" />
-                  <AppTab value="settings" icon={Settings} label="Настройки" />
-                </TabsList>
-              </Tabs>
             </div>
           </div>
 
@@ -353,6 +319,18 @@ function AppMenu({
             onClick={() => onNavigate("collection")}
           />
           <MenuAction
+            icon={Sparkles}
+            title="Популярное"
+            text="Рейтинг событий по интересу"
+            onClick={() => onNavigate("popular")}
+          />
+          <MenuAction
+            icon={Download}
+            title="Экспорт"
+            text="JSON/CSV для подборки или текущего поиска"
+            onClick={() => onNavigate("export")}
+          />
+          <MenuAction
             icon={ShieldCheck}
             title="Безопасность"
             text="Чек-ин, тревожная кнопка, доверенный контакт"
@@ -373,6 +351,37 @@ function AppMenu({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function CategoryPicker({
+  value,
+  onChange,
+}: {
+  value: CategoryFilter;
+  onChange: (value: CategoryFilter) => void;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-5">
+      {categories.map((item) => {
+        const isActive = value === item;
+
+        return (
+          <button
+            key={item}
+            type="button"
+            className={
+              isActive
+                ? "rounded-md bg-[#235646] px-4 py-3 text-left text-sm font-semibold text-white"
+                : "rounded-md border border-[#d9d5cb] bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-[#344139] transition hover:bg-white"
+            }
+            onClick={() => onChange(item)}
+          >
+            {item}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1062,23 +1071,6 @@ function TraceItem({ title, value }: { title: string; value: string }) {
       <h4 className="font-semibold">{title}</h4>
       <p className="mt-1 text-sm leading-6 text-[#56635d]">{value}</p>
     </div>
-  );
-}
-
-function AppTab({
-  value,
-  icon: Icon,
-  label,
-}: {
-  value: AppView;
-  icon: typeof Search;
-  label: string;
-}) {
-  return (
-    <TabsTrigger value={value} className="rounded-sm">
-      <Icon className="size-4" />
-      {label}
-    </TabsTrigger>
   );
 }
 
