@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -77,6 +77,14 @@ export function EventBrowser() {
   const [saved, setSaved] = useState<string[]>([]);
   const [joined, setJoined] = useState<string[]>([]);
   const [copyState, setCopyState] = useState("Скопировать для Telegram");
+
+  useEffect(() => {
+    const requestedCategory = new URLSearchParams(window.location.search).get("category");
+
+    if (categories.includes(requestedCategory as CategoryFilter)) {
+      setCategory(requestedCategory as CategoryFilter);
+    }
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
