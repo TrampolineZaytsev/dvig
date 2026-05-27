@@ -9,7 +9,8 @@ const categoryCards = [
     text: "Премьеры, авторские показы и компания на вечер.",
     href: "/app/?category=Кино",
     icon: Film,
-    image: "/category-cinema.svg",
+    image: "/categories/cinema.jpg",
+    imagePosition: "object-center",
     gradient: "from-[#2d1f4e] via-[#8064a2]/80 to-[#0a0612]",
   },
   {
@@ -17,7 +18,8 @@ const categoryCards = [
     text: "Антикафе, квизы и игры без готовой команды.",
     href: "/app/?category=Настолки",
     icon: Dice5,
-    image: "/category-games.svg",
+    image: "/categories/games.jpg",
+    imagePosition: "object-[center_35%]",
     gradient: "from-[#3d2858] via-[#9b6bb8]/70 to-[#0a0612]",
   },
   {
@@ -25,7 +27,8 @@ const categoryCards = [
     text: "Выставки, лекции, прогулки и городские маршруты.",
     href: "/app/?category=Культура",
     icon: Landmark,
-    image: "/category-culture.svg",
+    image: "/categories/culture.jpg",
+    imagePosition: "object-center",
     gradient: "from-[#1f2848] via-[#5c6a9e]/75 to-[#0a0612]",
   },
   {
@@ -33,7 +36,8 @@ const categoryCards = [
     text: "Пробежки, студии и активные встречи в группе.",
     href: "/app/?category=Спорт",
     icon: Dumbbell,
-    image: "/category-sport.svg",
+    image: "/categories/sport.jpg",
+    imagePosition: "object-[center_40%]",
     gradient: "from-[#3a1848] via-[#c6269e]/60 to-[#0a0612]",
   },
 ];
@@ -83,13 +87,16 @@ export default function Home() {
                 href={card.href}
                 className="dvig-card-hover group overflow-hidden rounded-2xl border border-border/40 bg-card/50 backdrop-blur-md"
               >
-                <div className={`relative min-h-44 bg-gradient-to-br ${card.gradient}`}>
+                <div className={`relative min-h-48 overflow-hidden bg-gradient-to-br ${card.gradient}`}>
                   <img
                     src={card.image}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover opacity-40 mix-blend-overlay"
+                    alt={`${card.title} — события и компания`}
+                    className={`absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105 ${card.imagePosition}`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-55 mix-blend-multiply`}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                   <div className="absolute left-4 top-4 flex size-11 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-primary backdrop-blur-md">
                     <card.icon className="size-6 text-brand-glow" />
                   </div>
