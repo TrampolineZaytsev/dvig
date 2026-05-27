@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -141,12 +141,12 @@ export function EventBrowser() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f6f3ee] text-[#171b18]">
-      <header className="border-b border-[#d9d5cb] bg-white">
+    <main className="dvig-page min-h-screen text-foreground">
+      <header className="dvig-header">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-md bg-[#235646] text-sm font-semibold text-white">
+              <span className="dvig-logo size-9 text-sm">
                 Д
               </span>
               <span className="font-semibold">ДВИГ</span>
@@ -168,14 +168,14 @@ export function EventBrowser() {
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-5">
-          <div className="rounded-md border border-[#d9d5cb] bg-white p-4">
+          <div className="dvig-panel p-4">
             <div className="flex flex-col gap-5">
               <div>
-                <Badge className="rounded-md bg-[#dbe9e2] text-[#235646] hover:bg-[#dbe9e2]">
+                <Badge className="dvig-badge">
                   {filteredEvents.length} встреч найдено
                 </Badge>
-                <h1 className="mt-3 text-3xl font-semibold">Выберите мероприятие</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#56635d]">
+                <h1 className="mt-3 text-3xl font-bold tracking-tight">Выберите мероприятие</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                   Категория и поиск здесь. Профиль, мои события, безопасность и экспорт
                   вынесены в меню справа сверху.
                 </p>
@@ -185,7 +185,7 @@ export function EventBrowser() {
                 <label className="block text-sm font-medium">
                   Поиск
                   <div className="relative mt-2">
-                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6b746f]" />
+                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
                     <Input
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
@@ -294,7 +294,7 @@ function AppMenu({
           <Button
             variant="outline"
             size="icon"
-            className="size-11 shrink-0 rounded-md border-[#c7c0b4]"
+            className="size-11 shrink-0 rounded-md border-border/60"
           />
         }
       >
@@ -372,8 +372,8 @@ function CategoryPicker({
             type="button"
             className={
               isActive
-                ? "rounded-md bg-[#235646] px-4 py-3 text-left text-sm font-semibold text-white"
-                : "rounded-md border border-[#d9d5cb] bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-[#344139] transition hover:bg-white"
+                ? "dvig-category-active px-4 py-3 text-left text-sm"
+                : "dvig-category-inactive px-4 py-3 text-left text-sm"
             }
             onClick={() => onChange(item)}
           >
@@ -387,14 +387,14 @@ function CategoryPicker({
 
 function MenuProfile() {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-4">
+    <div className="dvig-panel-muted p-4">
       <div className="flex items-center gap-3">
         <Avatar>
           <AvatarFallback>А</AvatarFallback>
         </Avatar>
         <div>
           <p className="font-semibold">Алина</p>
-          <p className="text-sm text-[#56635d]">профиль проверяется · СПб</p>
+          <p className="text-sm text-muted-foreground">профиль проверяется · СПб</p>
         </div>
       </div>
     </div>
@@ -415,13 +415,13 @@ function MenuAction({
   return (
     <button
       type="button"
-      className="flex w-full items-start gap-3 rounded-md border border-[#d9d5cb] bg-white p-4 text-left transition hover:bg-[#f8f6f1]"
+      className="flex w-full items-start gap-3 dvig-panel p-4 text-left transition hover:bg-muted/50"
       onClick={onClick}
     >
-      <Icon className="mt-1 size-5 shrink-0 text-[#235646]" />
+      <Icon className="mt-1 size-5 shrink-0 text-primary" />
       <span>
         <span className="block font-semibold">{title}</span>
-        <span className="mt-1 block text-sm leading-5 text-[#56635d]">{text}</span>
+        <span className="mt-1 block text-sm leading-5 text-muted-foreground">{text}</span>
       </span>
     </button>
   );
@@ -444,9 +444,9 @@ function EventGrid({
 }) {
   if (items.length === 0) {
     return (
-      <div className="mt-5 rounded-md border border-[#d9d5cb] bg-white p-8 text-center">
+      <div className="mt-5 dvig-panel p-8 text-center">
         <p className="text-lg font-medium">Нет встреч под такие фильтры.</p>
-        <p className="mt-2 text-sm text-[#56635d]">Сбросьте категорию, дату или поисковый запрос.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Сбросьте категорию, дату или поисковый запрос.</p>
       </div>
     );
   }
@@ -489,7 +489,7 @@ function EventSheet({
         {event && (
           <>
             <SheetHeader>
-              <Badge className="mb-2 w-fit rounded-md bg-[#e6efe9] text-[#235646] hover:bg-[#e6efe9]">
+              <Badge className="mb-2 w-fit rounded-md bg-[#e6efe9] text-primary hover:bg-[#e6efe9]">
                 {event.category}
               </Badge>
               <SheetTitle className="text-2xl">{event.title}</SheetTitle>
@@ -505,20 +505,20 @@ function EventSheet({
               <Separator />
               <div>
                 <div className="mb-2 flex items-center gap-2 font-medium">
-                  <InfoIcon className="size-4 text-[#235646]" />
+                  <InfoIcon className="size-4 text-primary" />
                   Подробная карточка
                 </div>
-                <p className="text-sm leading-6 text-[#56635d]">{event.description}</p>
-                <p className="mt-2 text-xs text-[#6b746f]">
+                <p className="text-sm leading-6 text-muted-foreground">{event.description}</p>
+                <p className="mt-2 text-xs text-muted-foreground/80">
                   Источник: {event.source} · обновлено {event.updatedAt}
                 </p>
               </div>
-              <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-4">
+              <div className="dvig-panel-muted p-4">
                 <div className="mb-3 flex items-center gap-2 font-medium">
-                  <Sparkles className="size-4 text-[#235646]" />
+                  <Sparkles className="size-4 text-primary" />
                   ИИ-резюме
                 </div>
-                <div className="grid gap-3 text-sm leading-6 text-[#56635d]">
+                <div className="grid gap-3 text-sm leading-6 text-muted-foreground">
                   <SummaryItem label="Почему стоит пойти" value={event.aiSummary.why} />
                   <SummaryItem label="Атмосфера" value={event.aiSummary.vibe} />
                   <SummaryItem label="Кому подойдет" value={event.aiSummary.audience} />
@@ -526,14 +526,14 @@ function EventSheet({
               </div>
               <div>
                 <div className="mb-3 flex items-center gap-2 font-medium">
-                  <Table2 className="size-4 text-[#235646]" />
+                  <Table2 className="size-4 text-primary" />
                   Цены и даты
                 </div>
-                <div className="overflow-hidden rounded-md border border-[#d9d5cb]">
+                <div className="overflow-hidden rounded-md border border-border/50">
                   {event.priceOptions.map((option) => (
                     <div
                       key={`${option.date}-${option.time}`}
-                      className="grid grid-cols-[1fr_0.8fr_0.8fr] gap-3 border-b border-[#d9d5cb] bg-white p-3 text-sm last:border-b-0"
+                      className="grid grid-cols-[1fr_0.8fr_0.8fr] gap-3 dvig-header p-3 text-sm last:border-b-0"
                     >
                       <span>{option.date}</span>
                       <span>{option.time}</span>
@@ -542,36 +542,36 @@ function EventSheet({
                   ))}
                 </div>
               </div>
-              <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-4">
+              <div className="dvig-panel-muted p-4">
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarFallback>{event.moderator.slice(0, 1)}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-medium">Модератор: {event.moderator}</p>
-                    <p className="flex items-center gap-1 text-sm text-[#56635d]">
-                      <Star className="size-4 fill-[#f5c451] text-[#f5c451]" />
+                    <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Star className="size-4 fill-amber-400 text-amber-400" />
                       рейтинг {event.rating}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="rounded-md border border-[#d9d5cb] bg-white p-4">
+              <div className="dvig-panel p-4">
                 <div className="mb-3 flex items-center gap-2 font-medium">
-                  <ShieldCheck className="size-4 text-[#235646]" />
+                  <ShieldCheck className="size-4 text-primary" />
                   Безопасность встречи
                 </div>
-                <div className="grid gap-2 text-sm text-[#56635d]">
+                <div className="grid gap-2 text-sm text-muted-foreground">
                   <span className="flex items-center gap-2">
-                    <Check className="size-4 text-[#235646]" />
+                    <Check className="size-4 text-primary" />
                     публичное место: {event.place}
                   </span>
                   <span className="flex items-center gap-2">
-                    <Check className="size-4 text-[#235646]" />
+                    <Check className="size-4 text-primary" />
                     модератор видит заявки до подтверждения
                   </span>
                   <span className="flex items-center gap-2">
-                    <Check className="size-4 text-[#235646]" />
+                    <Check className="size-4 text-primary" />
                     можно выйти из встречи и скрыть профиль от участников
                   </span>
                 </div>
@@ -583,14 +583,14 @@ function EventSheet({
                   </Badge>
                 ))}
               </div>
-              <div className="flex items-center gap-2 text-sm text-[#56635d]">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="size-4" />
                 {event.place}, {event.address}
               </div>
             </div>
             <SheetFooter>
               <Button
-                className="rounded-md bg-[#235646] hover:bg-[#1b4437]"
+                className="dvig-btn-primary rounded-lg"
                 onClick={() => onJoin(event.id)}
               >
                 {isJoined ? (
@@ -629,24 +629,24 @@ function EventCard({
   onJoin: () => void;
 }) {
   return (
-    <Card className="rounded-md border-[#d9d5cb] shadow-none">
+    <Card className="rounded-md border-border/50 shadow-none">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
-            <Badge className="rounded-md bg-[#e6efe9] text-[#235646] hover:bg-[#e6efe9]">
+            <Badge className="rounded-md bg-[#e6efe9] text-primary hover:bg-[#e6efe9]">
               {event.category}
             </Badge>
             <CardTitle className="text-xl">{event.title}</CardTitle>
           </div>
           <Button variant="ghost" size="icon" className="rounded-md" onClick={onSave}>
-            <Heart className={isSaved ? "size-4 fill-[#d96b52] text-[#d96b52]" : "size-4"} />
+            <Heart className={isSaved ? "size-4 fill-brand-magenta text-brand-magenta" : "size-4"} />
             <span className="sr-only">Сохранить</span>
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm leading-6 text-[#56635d]">{event.short}</p>
-        <div className="grid gap-2 text-sm text-[#56635d] sm:grid-cols-2">
+        <p className="text-sm leading-6 text-muted-foreground">{event.short}</p>
+        <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           <span className="flex items-center gap-2">
             <CalendarDays className="size-4" />
             {event.date}, {event.time}
@@ -665,7 +665,7 @@ function EventCard({
           </span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button className="rounded-md bg-[#235646] hover:bg-[#1b4437]" onClick={onJoin}>
+          <Button className="dvig-btn-primary rounded-lg" onClick={onJoin}>
             {isJoined ? (
               <>
                 <Check className="size-4" />
@@ -698,8 +698,8 @@ function PopularRow({
   onSave: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-md border border-[#d9d5cb] bg-white p-4 md:grid-cols-[56px_1fr_auto] md:items-center">
-      <div className="flex size-10 items-center justify-center rounded-md bg-[#dbe9e2] font-semibold text-[#235646]">
+    <div className="grid gap-3 dvig-panel p-4 md:grid-cols-[56px_1fr_auto] md:items-center">
+      <div className="flex size-10 items-center justify-center rounded-lg bg-primary/20 font-semibold text-primary">
         {rank}
       </div>
       <div>
@@ -709,7 +709,7 @@ function PopularRow({
             {event.popularityScore} баллов
           </Badge>
         </div>
-        <p className="mt-1 text-sm text-[#56635d]">
+        <p className="mt-1 text-sm text-muted-foreground">
           {event.participants} идут · {event.rating} рейтинг · {event.place}
         </p>
       </div>
@@ -717,7 +717,7 @@ function PopularRow({
         <Button variant="outline" className="rounded-md" onClick={onSave}>
           {isSaved ? "В подборке" : "Сохранить"}
         </Button>
-        <Button className="rounded-md bg-[#235646] hover:bg-[#1b4437]" onClick={onOpen}>
+        <Button className="dvig-btn-primary rounded-lg" onClick={onOpen}>
           Открыть
         </Button>
       </div>
@@ -744,22 +744,22 @@ function CollectionPanel({
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
       <div className="space-y-4">
         {savedEvents.length === 0 ? (
-          <div className="rounded-md border border-[#d9d5cb] bg-white p-8">
+          <div className="dvig-panel p-8">
             <h3 className="text-xl font-semibold">Подборка пустая</h3>
-            <p className="mt-2 text-sm text-[#56635d]">
+            <p className="mt-2 text-sm text-muted-foreground">
               Нажмите сердечко у события, чтобы собрать дайджест для друзей или Telegram-чата.
             </p>
           </div>
         ) : (
           savedEvents.map((event) => (
-            <div key={event.id} className="rounded-md border border-[#d9d5cb] bg-white p-4">
+            <div key={event.id} className="dvig-panel p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <Badge className="rounded-md bg-[#e6efe9] text-[#235646] hover:bg-[#e6efe9]">
+                  <Badge className="rounded-md bg-[#e6efe9] text-primary hover:bg-[#e6efe9]">
                     {event.category}
                   </Badge>
                   <h3 className="mt-2 text-lg font-semibold">{event.title}</h3>
-                  <p className="mt-1 text-sm text-[#56635d]">{event.date}, {event.time} · {event.place}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{event.date}, {event.time} · {event.place}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="rounded-md" onClick={() => onOpen(event)}>
@@ -774,15 +774,15 @@ function CollectionPanel({
           ))
         )}
       </div>
-      <div className="h-fit rounded-md border border-[#d9d5cb] bg-white p-4">
+      <div className="h-fit dvig-panel p-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-semibold">Telegram preview</h3>
-          <Button className="rounded-md bg-[#235646] hover:bg-[#1b4437]" onClick={onCopy}>
+          <Button className="dvig-btn-primary rounded-lg" onClick={onCopy}>
             <Clipboard className="size-4" />
             {copyState}
           </Button>
         </div>
-        <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-md bg-[#f8f6f1] p-4 text-sm leading-6 text-[#344139]">
+        <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-6 text-foreground/90">
           {digest}
         </pre>
       </div>
@@ -800,17 +800,17 @@ function ExportPanel({
   onCsv: () => void;
 }) {
   return (
-    <div className="mt-5 rounded-md border border-[#d9d5cb] bg-white p-5">
+    <div className="mt-5 dvig-panel p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h3 className="text-xl font-semibold">Экспорт событий</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#56635d]">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Если есть сохраненная подборка, экспортируется она. Если подборка пустая,
             экспортируются события из текущего поиска.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button className="rounded-md bg-[#235646] hover:bg-[#1b4437]" onClick={onJson}>
+          <Button className="dvig-btn-primary rounded-lg" onClick={onJson}>
             <Download className="size-4" />
             JSON
           </Button>
@@ -820,11 +820,11 @@ function ExportPanel({
           </Button>
         </div>
       </div>
-      <div className="mt-5 overflow-hidden rounded-md border border-[#d9d5cb]">
+      <div className="mt-5 overflow-hidden rounded-xl border border-border/50">
         {exportEvents.map((event) => (
           <div
             key={event.id}
-            className="grid gap-2 border-b border-[#d9d5cb] p-3 text-sm last:border-b-0 md:grid-cols-[1fr_120px_120px_100px]"
+            className="grid gap-2 border-b border-border/50 p-3 text-sm last:border-b-0 md:grid-cols-[1fr_120px_120px_100px]"
           >
             <span className="font-medium">{event.title}</span>
             <span>{event.category}</span>
@@ -846,10 +846,10 @@ function SettingsPanel() {
         ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
         ["Данные", "Mock", "Интерфейс готов под подключение KudaGo, но текущая версия стабильна без сети."],
       ].map(([title, value, text]) => (
-        <div key={title} className="rounded-md border border-[#d9d5cb] bg-white p-4">
-          <span className="text-sm text-[#6b746f]">{title}</span>
+        <div key={title} className="dvig-panel p-4">
+          <span className="text-sm text-muted-foreground/80">{title}</span>
           <h3 className="mt-1 text-lg font-semibold">{value}</h3>
-          <p className="mt-2 text-sm leading-6 text-[#56635d]">{text}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
         </div>
       ))}
     </div>
@@ -864,12 +864,12 @@ function SafetyPanel({ joinedCount }: { joinedCount: number }) {
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
       <div className="space-y-4">
-        <div className="rounded-md border border-[#d9d5cb] bg-white p-5">
+        <div className="dvig-panel p-5">
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-1 size-6 text-[#235646]" />
+            <ShieldCheck className="mt-1 size-6 text-primary" />
             <div>
               <h3 className="text-xl font-semibold">Контур безопасности офлайн-встречи</h3>
-              <p className="mt-2 text-sm leading-6 text-[#56635d]">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Мок показывает, какие реальные инструменты должны появиться до запуска
                 встреч один на один или малых групп: верификация, тревожная кнопка,
                 чек-ин, доверенный контакт, жалоба и выход из встречи.
@@ -909,7 +909,7 @@ function SafetyPanel({ joinedCount }: { joinedCount: number }) {
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-md border border-[#d9d5cb] bg-white p-5">
+        <div className="dvig-panel p-5">
           <h3 className="font-semibold">Мой safety-чеклист</h3>
           <div className="mt-4 space-y-3 text-sm">
             <SafetyRow label="Активные заявки" value={`${joinedCount}`} />
@@ -925,7 +925,7 @@ function SafetyPanel({ joinedCount }: { joinedCount: number }) {
               aria-label="Доверенный контакт"
             />
             <Button
-              className="rounded-md bg-[#235646] hover:bg-[#1b4437]"
+              className="dvig-btn-primary rounded-lg"
               onClick={() => setCheckInState("Я на месте · 18 мая, 19:04")}
             >
               <Check className="size-4" />
@@ -938,9 +938,9 @@ function SafetyPanel({ joinedCount }: { joinedCount: number }) {
           </div>
         </div>
 
-        <div className="rounded-md border border-[#d9d5cb] bg-[#fff7ed] p-5">
+        <div className="rounded-md border border-border/50 bg-[#fff7ed] p-5">
           <h3 className="font-semibold">Ограничение MVP</h3>
-          <p className="mt-2 text-sm leading-6 text-[#6b4a13]">
+          <p className="mt-2 text-sm leading-6 text-accent-foreground">
             Это демонстрационный интерфейс. До реального запуска нужны юридическая
             политика, обработка тревожных сигналов, модераторские регламенты и
             понятное согласие на обработку геоданных.
@@ -958,9 +958,9 @@ function ProfilePanel() {
 
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
-      <div className="rounded-md border border-[#d9d5cb] bg-white p-5">
+      <div className="dvig-panel p-5">
         <h3 className="text-xl font-semibold">Профиль и цифровой след</h3>
-        <p className="mt-2 text-sm leading-6 text-[#56635d]">
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Пользователь должен понимать, какие данные остаются после заявок, чатов,
           жалоб и выходов из встреч. В демо это показано как сценарии управления
           данными.
@@ -974,7 +974,7 @@ function ProfilePanel() {
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-md border border-[#d9d5cb] bg-white p-5">
+        <div className="dvig-panel p-5">
           <h3 className="font-semibold">Управление аккаунтом</h3>
           <div className="mt-4 space-y-3 text-sm">
             <SafetyRow label="Видимость" value={visibility} />
@@ -999,7 +999,7 @@ function ProfilePanel() {
               Запросить архив данных
             </Button>
             <Button
-              className="rounded-md bg-[#8f2f24] text-white hover:bg-[#74251d]"
+              className="rounded-lg bg-destructive text-white hover:bg-destructive/90"
               onClick={() => setDeleteState("Запрос на удаление создан · 30 дней на отмену")}
             >
               <Trash2 className="size-4" />
@@ -1008,9 +1008,9 @@ function ProfilePanel() {
           </div>
         </div>
 
-        <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-5">
+        <div className="dvig-panel-muted p-5">
           <h3 className="font-semibold">Что останется после удаления</h3>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#56635d]">
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
             <li>личный профиль, фото, интересы и контакты удаляются;</li>
             <li>заявки и чаты обезличиваются для истории модерации;</li>
             <li>жалобы и safety-события хранятся ограниченный срок;</li>
@@ -1038,15 +1038,15 @@ function SafetyCard({
   onAction?: () => void;
 }) {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-white p-4">
+    <div className="dvig-panel p-4">
       <div className="flex items-start justify-between gap-3">
-        <Icon className="size-5 text-[#235646]" />
+        <Icon className="size-5 text-primary" />
         <Badge variant="outline" className="rounded-md text-right">
           {status}
         </Badge>
       </div>
       <h3 className="mt-3 font-semibold">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#56635d]">{text}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
       {action && onAction && (
         <Button variant="outline" className="mt-3 rounded-md" onClick={onAction}>
           {action}
@@ -1058,8 +1058,8 @@ function SafetyCard({
 
 function SafetyRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-3">
-      <span className="text-xs text-[#6b746f]">{label}</span>
+    <div className="dvig-panel-muted p-3">
+      <span className="text-xs text-muted-foreground/80">{label}</span>
       <p className="mt-1 font-medium">{value}</p>
     </div>
   );
@@ -1067,9 +1067,9 @@ function SafetyRow({ label, value }: { label: string; value: string }) {
 
 function TraceItem({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-4">
+    <div className="dvig-panel-muted p-4">
       <h4 className="font-semibold">{title}</h4>
-      <p className="mt-1 text-sm leading-6 text-[#56635d]">{value}</p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">{value}</p>
     </div>
   );
 }
@@ -1106,8 +1106,8 @@ function FilterSelect({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-[#f8f6f1] p-3">
-      <span className="text-[#6b746f]">{label}</span>
+    <div className="dvig-panel-muted p-3">
+      <span className="text-muted-foreground/80">{label}</span>
       <p className="mt-1 text-lg font-semibold">{value}</p>
     </div>
   );
@@ -1115,8 +1115,8 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-[#d9d5cb] bg-white p-3">
-      <span className="text-xs text-[#6b746f]">{label}</span>
+    <div className="dvig-panel p-3">
+      <span className="text-xs text-muted-foreground/80">{label}</span>
       <p className="mt-1 font-medium">{value}</p>
     </div>
   );
@@ -1125,7 +1125,7 @@ function Info({ label, value }: { label: string; value: string }) {
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-xs font-medium uppercase tracking-wide text-[#235646]">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-primary">{label}</span>
       <p className="mt-1">{value}</p>
     </div>
   );
