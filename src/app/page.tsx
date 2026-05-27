@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Dice5, Dumbbell, Film, Landmark, ShieldCheck } from "lucide-react";
 
+import { DvigLogo } from "@/components/dvig-logo";
 import { Badge } from "@/components/ui/badge";
 
 const categoryCards = [
@@ -48,9 +49,7 @@ export default function Home() {
       <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4">
           <Link href="/" className="group flex items-center gap-3">
-            <span className="dvig-logo size-11 text-lg transition group-hover:shadow-primary/40">
-              Д
-            </span>
+            <DvigLogo size="md" />
             <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
           </Link>
           <Badge className="dvig-badge hidden sm:inline-flex">Санкт-Петербург</Badge>
