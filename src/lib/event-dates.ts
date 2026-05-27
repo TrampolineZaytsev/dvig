@@ -61,18 +61,36 @@ export function eventMatchesDateFilter(
     return true;
   }
 
-  if (selectedPresets.includes(event.date)) {
-    return true;
+  const eventDate = event.eventDate
+    ? parseISODate(event.eventDate)
+    : getEventCalendarDate(event.date);
+
+  if (customRange) {
+    const from = parseISODate(customRange.from);
+    const to = parseISODate(customRange.to);
+    if (eventDate >= from && eventDate <= to) {
+      return true;
+    }
   }
 
-  if (!customRange) {
-    return false;
+  if (selectedPresets.length === 0) {
+    return Boolean(customRange);
   }
 
-  const eventDate = getEventCalendarDate(event.date);
-  const from = parseISODate(customRange.from);
-  const to = parseISODate(customRange.to);
-  return eventDate >= from && eventDate <= to;
+  for (const preset of selectedPresets) {
+    const presetDate = getEventCalendarDate(preset);
+    if (isSameDay(eventDate, presetDate)) {
+      return true;
+    }
+    if (preset === "Выходные" && (eventDate.getDay() === 0 || eventDate.getDay() === 6)) {
+      return true;
+    }
+    if (event.date === preset) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function formatCustomDateRangeLabel(range: CustomDateRange): string {

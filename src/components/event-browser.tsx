@@ -40,6 +40,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -49,6 +56,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DateRangePicker } from "@/components/date-range-picker";
+import { KudagoCategoryPicker } from "@/components/kudago-category-picker";
 import {
   buildTelegramDigest,
   categoryFilters,
@@ -56,7 +64,6 @@ import {
   DvigEvent,
   EventCategory,
   EventMood,
-  events,
   moodFilters,
   toCsv,
 } from "@/lib/events";
@@ -65,9 +72,17 @@ import {
   eventMatchesDateFilter,
   formatCustomDateRangeLabel,
 } from "@/lib/event-dates";
+import { fetchDvigEvents } from "@/lib/fetch-events";
 
 type AppView = "search" | "profile" | "collection" | "friends" | "settings";
 type DatePreset = (typeof dateFilters)[number];
+type EventSort = "default" | "popular" | "participants";
+
+const sortOptions: { value: EventSort; label: string }[] = [
+  { value: "default", label: "По умолчанию" },
+  { value: "popular", label: "По популярности" },
+  { value: "participants", label: "По отзывам KudaGo" },
+];
 
 const moodLabels: Record<EventMood, string> = {
   спокойно: "Спокойно",
@@ -81,12 +96,14 @@ function toggleInList<T>(list: T[], item: T): T[] {
 
 function countActiveFilters(
   selectedCategories: EventCategory[],
+  extraCategorySlugs: string[],
   selectedDates: DatePreset[],
   selectedMoods: EventMood[],
   customDateRange: CustomDateRange | null
 ): number {
   return (
     selectedCategories.length +
+    extraCategorySlugs.length +
     selectedDates.length +
     selectedMoods.length +
     (customDateRange ? 1 : 0)
@@ -96,13 +113,18 @@ function countActiveFilters(
 export function EventBrowser() {
   const [view, setView] = useState<AppView>("search");
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
+  const [extraCategorySlugs, setExtraCategorySlugs] = useState<string[]>([]);
   const [selectedDates, setSelectedDates] = useState<DatePreset[]>([]);
   const [customDateRange, setCustomDateRange] = useState<CustomDateRange | null>(null);
   const [selectedMoods, setSelectedMoods] = useState<EventMood[]>([]);
-  const [sortByPopular, setSortByPopular] = useState(false);
+  const [sortBy, setSortBy] = useState<EventSort>("default");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<DvigEvent | null>(events[0]);
+  const [events, setEvents] = useState<DvigEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<DvigEvent | null>(null);
   const [saved, setSaved] = useState<string[]>([]);
+  const [savedEventsCache, setSavedEventsCache] = useState<Record<string, DvigEvent>>({});
   const [joined, setJoined] = useState<string[]>([]);
   const [copyState, setCopyState] = useState("Скопировать для Telegram");
 
@@ -114,37 +136,96 @@ export function EventBrowser() {
     }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setLoading(true);
+        setFetchError(null);
+        const result = await fetchDvigEvents({
+          primaryCategories: selectedCategories,
+          extraSlugs: extraCategorySlugs,
+          selectedDates,
+          customDateRange,
+          query,
+        });
+        if (cancelled) {
+          return;
+        }
+        if (result.error) {
+          setFetchError(result.error);
+          setEvents([]);
+        } else {
+          setEvents(result.events);
+          setFetchError(null);
+        }
+        setLoading(false);
+      })();
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [selectedCategories, extraCategorySlugs, selectedDates, customDateRange, query]);
+
   const filteredEvents = useMemo(() => {
     const matched = events.filter((event) => {
-      const queryMatch = `${event.title} ${event.place} ${event.short}`
-        .toLowerCase()
-        .includes(query.trim().toLowerCase());
       const categoryMatch =
-        selectedCategories.length === 0 || selectedCategories.includes(event.category);
+        (selectedCategories.length === 0 && extraCategorySlugs.length === 0) ||
+        (selectedCategories.length > 0 && selectedCategories.includes(event.category)) ||
+        (extraCategorySlugs.length > 0 &&
+          Boolean(
+            event.kudagoCategorySlug &&
+              extraCategorySlugs.includes(event.kudagoCategorySlug)
+          ));
       const dateMatch = eventMatchesDateFilter(event, selectedDates, customDateRange);
       const moodMatch = selectedMoods.length === 0 || selectedMoods.includes(event.mood);
 
-      return queryMatch && categoryMatch && dateMatch && moodMatch;
+      return categoryMatch && dateMatch && moodMatch;
     });
 
-    if (sortByPopular) {
+    if (sortBy === "popular") {
       return [...matched].sort((a, b) => b.popularityScore - a.popularityScore);
+    }
+    if (sortBy === "participants") {
+      return [...matched].sort(
+        (a, b) => (b.commentsCount ?? 0) - (a.commentsCount ?? 0)
+      );
     }
 
     return matched;
-  }, [customDateRange, query, selectedCategories, selectedDates, selectedMoods, sortByPopular]);
+  }, [
+    customDateRange,
+    events,
+    extraCategorySlugs,
+    selectedCategories,
+    selectedDates,
+    selectedMoods,
+    sortBy,
+  ]);
 
-  const savedEvents = useMemo(
-    () => events.filter((event) => saved.includes(event.id)),
-    [saved]
-  );
+  const savedEvents = useMemo(() => {
+    return saved
+      .map((id) => savedEventsCache[id] ?? events.find((event) => event.id === id))
+      .filter((event): event is DvigEvent => Boolean(event));
+  }, [events, saved, savedEventsCache]);
   const digest = useMemo(() => buildTelegramDigest(savedEvents), [savedEvents]);
   const exportEvents = savedEvents.length > 0 ? savedEvents : filteredEvents;
 
-  const toggleSaved = (eventId: string) => {
-    setSaved((current) =>
-      current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId]
-    );
+  const toggleSaved = (event: DvigEvent) => {
+    setSaved((current) => {
+      if (current.includes(event.id)) {
+        setSavedEventsCache((cache) => {
+          const next = { ...cache };
+          delete next[event.id];
+          return next;
+        });
+        return current.filter((id) => id !== event.id);
+      }
+      setSavedEventsCache((cache) => ({ ...cache, [event.id]: event }));
+      return [...current, event.id];
+    });
   };
 
   const toggleJoined = (eventId: string) => {
@@ -203,18 +284,21 @@ export function EventBrowser() {
           {view === "search" ? (
             <EventSearchPanel
               resultCount={filteredEvents.length}
+              loading={loading}
               query={query}
               onQueryChange={setQuery}
               selectedCategories={selectedCategories}
               onSelectedCategoriesChange={setSelectedCategories}
+              extraCategorySlugs={extraCategorySlugs}
+              onExtraCategorySlugsChange={setExtraCategorySlugs}
               selectedDates={selectedDates}
               onSelectedDatesChange={setSelectedDates}
               customDateRange={customDateRange}
               onCustomDateRangeChange={setCustomDateRange}
               selectedMoods={selectedMoods}
               onSelectedMoodsChange={setSelectedMoods}
-              sortByPopular={sortByPopular}
-              onSortByPopularChange={setSortByPopular}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
             />
           ) : (
             <div className="flex items-center justify-between gap-4">
@@ -228,11 +312,32 @@ export function EventBrowser() {
           {view === "search" && (
             <EventGrid
               events={filteredEvents}
+              loading={loading}
+              error={fetchError}
               saved={saved}
               joined={joined}
               onOpen={setSelected}
               onSave={toggleSaved}
               onJoin={toggleJoined}
+              onRetry={() => {
+                setLoading(true);
+                void fetchDvigEvents({
+                  primaryCategories: selectedCategories,
+                  extraSlugs: extraCategorySlugs,
+                  selectedDates,
+                  customDateRange,
+                  query,
+                }).then((result) => {
+                  if (result.error) {
+                    setFetchError(result.error);
+                    setEvents([]);
+                  } else {
+                    setEvents(result.events);
+                    setFetchError(null);
+                  }
+                  setLoading(false);
+                });
+              }}
             />
           )}
 
@@ -248,7 +353,7 @@ export function EventBrowser() {
               exportEvents={exportEvents}
               onCopy={copyDigest}
               onOpen={setSelected}
-              onRemove={toggleSaved}
+              onRemove={(event) => toggleSaved(event)}
               onExportJson={() => downloadFile(exportEvents, "json")}
               onExportCsv={() => downloadFile(exportEvents, "csv")}
             />
@@ -265,7 +370,7 @@ export function EventBrowser() {
         isSaved={selected ? saved.includes(selected.id) : false}
         isJoined={selected ? joined.includes(selected.id) : false}
         onClose={() => setSelected(null)}
-        onSave={(eventId) => toggleSaved(eventId)}
+        onSave={(event) => toggleSaved(event)}
         onJoin={(eventId) => toggleJoined(eventId)}
         onExportJson={(event) =>
           downloadFile([event], "json", `dvig-${event.id}`)
@@ -340,60 +445,63 @@ function AppMenu({ onNavigate }: { onNavigate: (view: AppView) => void }) {
 
 function EventSearchPanel({
   resultCount,
+  loading,
   query,
   onQueryChange,
   selectedCategories,
   onSelectedCategoriesChange,
+  extraCategorySlugs,
+  onExtraCategorySlugsChange,
   selectedDates,
   onSelectedDatesChange,
   customDateRange,
   onCustomDateRangeChange,
   selectedMoods,
   onSelectedMoodsChange,
-  sortByPopular,
-  onSortByPopularChange,
+  sortBy,
+  onSortByChange,
 }: {
   resultCount: number;
+  loading: boolean;
   query: string;
   onQueryChange: (value: string) => void;
   selectedCategories: EventCategory[];
   onSelectedCategoriesChange: (value: EventCategory[]) => void;
+  extraCategorySlugs: string[];
+  onExtraCategorySlugsChange: (value: string[]) => void;
   selectedDates: DatePreset[];
   onSelectedDatesChange: (value: DatePreset[]) => void;
   customDateRange: CustomDateRange | null;
   onCustomDateRangeChange: (value: CustomDateRange | null) => void;
   selectedMoods: EventMood[];
   onSelectedMoodsChange: (value: EventMood[]) => void;
-  sortByPopular: boolean;
-  onSortByPopularChange: (value: boolean) => void;
+  sortBy: EventSort;
+  onSortByChange: (value: EventSort) => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const activeFilterCount = countActiveFilters(
     selectedCategories,
+    extraCategorySlugs,
     selectedDates,
     selectedMoods,
     customDateRange
   );
   const hasQuery = query.trim().length > 0;
-  const hasActiveChips = activeFilterCount > 0 || hasQuery || sortByPopular;
+  const hasActiveChips = activeFilterCount > 0 || hasQuery;
 
   const resetFilters = () => {
     onSelectedCategoriesChange([]);
+    onExtraCategorySlugsChange([]);
     onSelectedDatesChange([]);
     onCustomDateRangeChange(null);
     onSelectedMoodsChange([]);
     onQueryChange("");
-    onSortByPopularChange(false);
   };
 
   return (
     <div className="dvig-panel p-4 sm:p-5">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Выберите мероприятие</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Сначала поиск и дата — затем категория и формат. Профиль и настройки — в меню справа
-          сверху.
-        </p>
       </div>
 
       <label className="relative mt-5 block">
@@ -408,39 +516,59 @@ function EventSearchPanel({
       </label>
 
       <div className="mt-4 flex flex-col gap-3 border-b border-border/40 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          className={`h-10 rounded-full px-4 ${filtersOpen ? "border-primary/40 bg-primary/5" : ""}`}
-          onClick={() => setFiltersOpen((open) => !open)}
-          aria-expanded={filtersOpen}
-        >
-          <SlidersHorizontal className="size-4" />
-          {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
-          {activeFilterCount > 0 && (
-            <Badge className="ml-0.5 rounded-full px-1.5 py-0 text-xs tabular-nums">
-              {activeFilterCount}
-            </Badge>
-          )}
-          {filtersOpen ? (
-            <ChevronUp className="size-4 opacity-70" />
-          ) : (
-            <ChevronDown className="size-4 opacity-70" />
-          )}
-        </Button>
-
-        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{formatEventCount(resultCount)}</span>{" "}
-            найдено
-          </p>
-          <FilterPill
-            active={sortByPopular}
-            onClick={() => onSortByPopularChange(!sortByPopular)}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-10 rounded-full px-4 ${filtersOpen ? "border-primary/40 bg-primary/5" : ""}`}
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
           >
-            Популярное
-          </FilterPill>
+            <SlidersHorizontal className="size-4" />
+            {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
+            {activeFilterCount > 0 && (
+              <Badge className="ml-0.5 rounded-full px-1.5 py-0 text-xs tabular-nums">
+                {activeFilterCount}
+              </Badge>
+            )}
+            {filtersOpen ? (
+              <ChevronUp className="size-4 opacity-70" />
+            ) : (
+              <ChevronDown className="size-4 opacity-70" />
+            )}
+          </Button>
+
+          <Select
+            value={sortBy}
+            onValueChange={(value) => onSortByChange(value as EventSort)}
+            items={sortOptions}
+          >
+            <SelectTrigger
+              className="h-10 min-w-[11rem] rounded-full border-border/60 bg-background/60 px-4"
+              aria-label="Сортировка"
+            >
+              <SelectValue placeholder="Сортировка" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+
+        <p className="text-sm text-muted-foreground sm:text-right">
+          {loading ? (
+            "Загружаем афишу KudaGo…"
+          ) : (
+            <>
+              <span className="font-medium text-foreground">{formatEventCount(resultCount)}</span>{" "}
+              найдено
+            </>
+          )}
+        </p>
       </div>
 
       {filtersOpen && (
@@ -482,9 +610,11 @@ function EventSearchPanel({
           </FilterGroup>
 
           <FilterGroup label="Категория">
-            <CategoryPicker
-              value={selectedCategories}
-              onChange={onSelectedCategoriesChange}
+            <KudagoCategoryPicker
+              primaryValue={selectedCategories}
+              onPrimaryChange={onSelectedCategoriesChange}
+              extraSlugs={extraCategorySlugs}
+              onExtraSlugsChange={onExtraCategorySlugsChange}
             />
           </FilterGroup>
         </div>
@@ -534,12 +664,6 @@ function EventSearchPanel({
               }
             />
           ))}
-          {sortByPopular && (
-            <ActiveFilterChip
-              label="Популярное"
-              onRemove={() => onSortByPopularChange(false)}
-            />
-          )}
           <Button
             type="button"
             variant="ghost"
@@ -630,37 +754,6 @@ function formatEventCount(count: number): string {
     return `${count} встречи`;
   }
   return `${count} встреч`;
-}
-
-function CategoryPicker({
-  value,
-  onChange,
-}: {
-  value: EventCategory[];
-  onChange: (value: EventCategory[]) => void;
-}) {
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {categoryFilters.map((item) => {
-        const isActive = value.includes(item);
-
-        return (
-          <button
-            key={item}
-            type="button"
-            className={
-              isActive
-                ? "dvig-category-active shrink-0 rounded-full px-4 py-2 text-sm"
-                : "dvig-category-inactive shrink-0 rounded-full px-4 py-2 text-sm"
-            }
-            onClick={() => onChange(toggleInList(value, item))}
-          >
-            {item}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 function SectionTitle({ view }: { view: AppView }) {
@@ -782,19 +875,46 @@ function FriendsPanel() {
 
 function EventGrid({
   events: items,
+  loading,
+  error,
   saved,
   joined,
   onOpen,
   onSave,
   onJoin,
+  onRetry,
 }: {
   events: DvigEvent[];
+  loading: boolean;
+  error: string | null;
   saved: string[];
   joined: string[];
   onOpen: (event: DvigEvent) => void;
-  onSave: (eventId: string) => void;
+  onSave: (event: DvigEvent) => void;
   onJoin: (eventId: string) => void;
+  onRetry: () => void;
 }) {
+  if (loading && items.length === 0) {
+    return (
+      <div className="mt-5 dvig-panel p-8 text-center">
+        <p className="text-lg font-medium">Загружаем афишу…</p>
+        <p className="mt-2 text-sm text-muted-foreground">Источник: KudaGo, Санкт-Петербург</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-5 dvig-panel p-8 text-center">
+        <p className="text-lg font-medium">Не удалось загрузить события</p>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        <Button className="dvig-btn-primary mt-4 rounded-lg" onClick={onRetry}>
+          Повторить
+        </Button>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="mt-5 dvig-panel p-8 text-center">
@@ -815,7 +935,7 @@ function EventGrid({
           isSaved={saved.includes(event.id)}
           isJoined={joined.includes(event.id)}
           onOpen={() => onOpen(event)}
-          onSave={() => onSave(event.id)}
+          onSave={() => onSave(event)}
           onJoin={() => onJoin(event.id)}
         />
       ))}
@@ -837,7 +957,7 @@ function EventSheet({
   isSaved: boolean;
   isJoined: boolean;
   onClose: () => void;
-  onSave: (eventId: string) => void;
+  onSave: (event: DvigEvent) => void;
   onJoin: (eventId: string) => void;
   onExportJson: (event: DvigEvent) => void;
   onExportCsv: (event: DvigEvent) => void;
@@ -964,7 +1084,7 @@ function EventSheet({
               <Button
                 variant="outline"
                 className="w-full rounded-md"
-                onClick={() => onSave(event.id)}
+                onClick={() => onSave(event)}
               >
                 {isSaved ? "Убрать из подборки" : "Сохранить в подборку"}
               </Button>
@@ -1009,8 +1129,24 @@ function EventCard({
   onSave: () => void;
   onJoin: () => void;
 }) {
+  const cardStyle = event.imageUrl
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(10, 6, 18, 0.72) 0%, rgba(10, 6, 18, 0.92) 100%), url(${event.imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
+
+  const socialLine =
+    event.source === "KudaGo"
+      ? `♥ ${event.popularityScore} · 💬 ${event.commentsCount ?? 0}`
+      : `${event.participants} идут · ${event.spotsLeft} мест`;
+
   return (
-    <Card className="rounded-md border-border/50 shadow-none">
+    <Card
+      className="overflow-hidden rounded-md border-border/50 shadow-none"
+      style={cardStyle}
+    >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
@@ -1034,7 +1170,7 @@ function EventCard({
           </span>
           <span className="flex items-center gap-2">
             <UsersRound className="size-4" />
-            {event.participants} идут · {event.spotsLeft} мест
+            {socialLine}
           </span>
           <span className="flex items-center gap-2">
             <MapPin className="size-4" />
@@ -1082,7 +1218,7 @@ function CollectionPanel({
   exportEvents: DvigEvent[];
   onCopy: () => void;
   onOpen: (event: DvigEvent) => void;
-  onRemove: (eventId: string) => void;
+  onRemove: (event: DvigEvent) => void;
   onExportJson: () => void;
   onExportCsv: () => void;
 }) {
@@ -1111,7 +1247,7 @@ function CollectionPanel({
                   <Button variant="outline" className="rounded-md" onClick={() => onOpen(event)}>
                     Открыть
                   </Button>
-                  <Button variant="ghost" className="rounded-md" onClick={() => onRemove(event.id)}>
+                  <Button variant="ghost" className="rounded-md" onClick={() => onRemove(event)}>
                     Убрать
                   </Button>
                 </div>
@@ -1186,7 +1322,7 @@ function SettingsPanel({ joinedCount }: { joinedCount: number }) {
             ["Город", "Санкт-Петербург", "В следующем этапе здесь будет выбор города и источник афиши."],
             ["ИИ-резюме", "Демо-режим", "Сейчас текст локальный. Реальные OpenAI/GigaChat ключи должны жить только на сервере."],
             ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
-            ["Данные", "Mock", "Интерфейс готов под подключение KudaGo, но текущая версия стабильна без сети."],
+            ["Данные", "KudaGo", "Афиша подгружается из KudaGo API (СПб). Кэш ответов на сервере ~5 минут."],
           ].map(([title, value, text]) => (
             <div key={title} className="dvig-panel p-4">
               <span className="text-sm text-muted-foreground/80">{title}</span>
