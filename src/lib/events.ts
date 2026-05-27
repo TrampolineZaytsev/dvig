@@ -249,9 +249,16 @@ export const events: DvigEvent[] = [
 
 export const featuredEvents = events.slice(0, 3);
 
-export const categories = ["Все", "Кино", "Настолки", "Культура", "Спорт"] as const;
-export const dates = ["Любая дата", "Сегодня", "Завтра", "Выходные"] as const;
-export const moods = ["Любой формат", "спокойно", "общительно", "активно"] as const;
+export const categoryFilters = ["Кино", "Настолки", "Культура", "Спорт"] as const;
+export const dateFilters = ["Сегодня", "Завтра", "Выходные"] as const;
+export const moodFilters = ["спокойно", "общительно", "активно"] as const;
+
+/** @deprecated Используйте categoryFilters для UI-фильтров */
+export const categories = ["Все", ...categoryFilters] as const;
+/** @deprecated Используйте dateFilters для UI-фильтров */
+export const dates = ["Любая дата", ...dateFilters] as const;
+/** @deprecated Используйте moodFilters для UI-фильтров */
+export const moods = ["Любой формат", ...moodFilters] as const;
 
 export function getPopularEvents() {
   return [...events].sort((a, b) => b.popularityScore - a.popularityScore);

@@ -1,17 +1,20 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import {
   BellRing,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   Clipboard,
   Download,
   EyeOff,
   FileText,
   Heart,
+  Home,
   InfoIcon,
   LogOut,
   Menu,
@@ -19,6 +22,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Table2,
@@ -26,6 +30,7 @@ import {
   TriangleAlert,
   UserCheck,
   UsersRound,
+  X,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,13 +38,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -50,27 +48,58 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { DateRangePicker } from "@/components/date-range-picker";
 import {
   buildTelegramDigest,
-  categories,
-  dates,
+  categoryFilters,
+  dateFilters,
   DvigEvent,
+  EventCategory,
+  EventMood,
   events,
-  getPopularEvents,
-  moods,
+  moodFilters,
   toCsv,
 } from "@/lib/events";
+import {
+  CustomDateRange,
+  eventMatchesDateFilter,
+  formatCustomDateRangeLabel,
+} from "@/lib/event-dates";
 
-type CategoryFilter = (typeof categories)[number];
-type DateFilter = (typeof dates)[number];
-type MoodFilter = (typeof moods)[number];
-type AppView = "search" | "popular" | "collection" | "export" | "safety" | "profile" | "settings";
+type AppView = "search" | "profile" | "collection" | "friends" | "settings";
+type DatePreset = (typeof dateFilters)[number];
+
+const moodLabels: Record<EventMood, string> = {
+  спокойно: "Спокойно",
+  общительно: "Общительно",
+  активно: "Активно",
+};
+
+function toggleInList<T>(list: T[], item: T): T[] {
+  return list.includes(item) ? list.filter((value) => value !== item) : [...list, item];
+}
+
+function countActiveFilters(
+  selectedCategories: EventCategory[],
+  selectedDates: DatePreset[],
+  selectedMoods: EventMood[],
+  customDateRange: CustomDateRange | null
+): number {
+  return (
+    selectedCategories.length +
+    selectedDates.length +
+    selectedMoods.length +
+    (customDateRange ? 1 : 0)
+  );
+}
 
 export function EventBrowser() {
   const [view, setView] = useState<AppView>("search");
-  const [category, setCategory] = useState<CategoryFilter>("Все");
-  const [date, setDate] = useState<DateFilter>("Любая дата");
-  const [mood, setMood] = useState<MoodFilter>("Любой формат");
+  const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
+  const [selectedDates, setSelectedDates] = useState<DatePreset[]>([]);
+  const [customDateRange, setCustomDateRange] = useState<CustomDateRange | null>(null);
+  const [selectedMoods, setSelectedMoods] = useState<EventMood[]>([]);
+  const [sortByPopular, setSortByPopular] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<DvigEvent | null>(events[0]);
   const [saved, setSaved] = useState<string[]>([]);
@@ -80,30 +109,36 @@ export function EventBrowser() {
   useEffect(() => {
     const requestedCategory = new URLSearchParams(window.location.search).get("category");
 
-    if (categories.includes(requestedCategory as CategoryFilter)) {
-      setCategory(requestedCategory as CategoryFilter);
+    if (categoryFilters.includes(requestedCategory as EventCategory)) {
+      setSelectedCategories([requestedCategory as EventCategory]);
     }
   }, []);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
+    const matched = events.filter((event) => {
       const queryMatch = `${event.title} ${event.place} ${event.short}`
         .toLowerCase()
         .includes(query.trim().toLowerCase());
-      const categoryMatch = category === "Все" || event.category === category;
-      const dateMatch = date === "Любая дата" || event.date === date;
-      const moodMatch = mood === "Любой формат" || event.mood === mood;
+      const categoryMatch =
+        selectedCategories.length === 0 || selectedCategories.includes(event.category);
+      const dateMatch = eventMatchesDateFilter(event, selectedDates, customDateRange);
+      const moodMatch = selectedMoods.length === 0 || selectedMoods.includes(event.mood);
 
       return queryMatch && categoryMatch && dateMatch && moodMatch;
     });
-  }, [category, date, mood, query]);
+
+    if (sortByPopular) {
+      return [...matched].sort((a, b) => b.popularityScore - a.popularityScore);
+    }
+
+    return matched;
+  }, [customDateRange, query, selectedCategories, selectedDates, selectedMoods, sortByPopular]);
 
   const savedEvents = useMemo(
     () => events.filter((event) => saved.includes(event.id)),
     [saved]
   );
   const digest = useMemo(() => buildTelegramDigest(savedEvents), [savedEvents]);
-  const popularEvents = useMemo(() => getPopularEvents(), []);
   const exportEvents = savedEvents.length > 0 ? savedEvents : filteredEvents;
 
   const toggleSaved = (eventId: string) => {
@@ -118,15 +153,14 @@ export function EventBrowser() {
     );
   };
 
-  const downloadFile = (format: "json" | "csv") => {
-    const content =
-      format === "json" ? JSON.stringify(exportEvents, null, 2) : toCsv(exportEvents);
+  const downloadFile = (items: DvigEvent[], format: "json" | "csv", filename = "dvig-events") => {
+    const content = format === "json" ? JSON.stringify(items, null, 2) : toCsv(items);
     const type = format === "json" ? "application/json" : "text/csv";
     const blob = new Blob([content], { type: `${type};charset=utf-8` });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `dvig-events.${format}`;
+    link.download = `${filename}.${format}`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -159,59 +193,37 @@ export function EventBrowser() {
             </Badge>
           </div>
           <div className="flex items-center justify-end">
-            <AppMenu
-              savedCount={saved.length}
-              joinedCount={joined.length}
-              eventsCount={events.length}
-              onNavigate={setView}
-            />
+            <AppMenu onNavigate={setView} />
           </div>
         </div>
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-5">
-          <div className="dvig-panel p-4">
-            <div className="flex flex-col gap-5">
-              <div>
-                <Badge className="dvig-badge">
-                  {filteredEvents.length} встреч найдено
-                </Badge>
-                <h1 className="mt-3 text-3xl font-bold tracking-tight">Выберите мероприятие</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Категория и поиск здесь. Профиль, мои события, безопасность и экспорт
-                  вынесены в меню справа сверху.
-                </p>
-              </div>
-              <CategoryPicker value={category} onChange={setCategory} />
-              <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
-                <label className="block text-sm font-medium">
-                  Поиск
-                  <div className="relative mt-2">
-                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
-                    <Input
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="кино, антикафе, лекция"
-                      className="rounded-md pl-9"
-                    />
-                  </div>
-                </label>
-                <FilterSelect
-                  label="Дата"
-                  value={date}
-                  values={dates}
-                  onChange={(value) => setDate(value as DateFilter)}
-                />
-                <FilterSelect
-                  label="Формат"
-                  value={mood}
-                  values={moods}
-                  onChange={(value) => setMood(value as MoodFilter)}
-                />
-              </div>
+          {view === "search" ? (
+            <EventSearchPanel
+              resultCount={filteredEvents.length}
+              query={query}
+              onQueryChange={setQuery}
+              selectedCategories={selectedCategories}
+              onSelectedCategoriesChange={setSelectedCategories}
+              selectedDates={selectedDates}
+              onSelectedDatesChange={setSelectedDates}
+              customDateRange={customDateRange}
+              onCustomDateRangeChange={setCustomDateRange}
+              selectedMoods={selectedMoods}
+              onSelectedMoodsChange={setSelectedMoods}
+              sortByPopular={sortByPopular}
+              onSortByPopularChange={setSortByPopular}
+            />
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <SectionTitle view={view} />
+              <Button variant="outline" className="rounded-md" onClick={() => setView("search")}>
+                К событиям
+              </Button>
             </div>
-          </div>
+          )}
 
           {view === "search" && (
             <EventGrid
@@ -224,19 +236,8 @@ export function EventBrowser() {
             />
           )}
 
-          {view === "popular" && (
-            <div className="mt-5 space-y-4">
-              {popularEvents.map((event, index) => (
-                <PopularRow
-                  key={event.id}
-                  rank={index + 1}
-                  event={event}
-                  isSaved={saved.includes(event.id)}
-                  onOpen={() => setSelected(event)}
-                  onSave={() => toggleSaved(event.id)}
-                />
-              ))}
-            </div>
+          {view === "profile" && (
+            <ProfileView savedCount={saved.length} joinedCount={joined.length} />
           )}
 
           {view === "collection" && (
@@ -244,25 +245,18 @@ export function EventBrowser() {
               savedEvents={savedEvents}
               digest={digest}
               copyState={copyState}
+              exportEvents={exportEvents}
               onCopy={copyDigest}
               onOpen={setSelected}
               onRemove={toggleSaved}
+              onExportJson={() => downloadFile(exportEvents, "json")}
+              onExportCsv={() => downloadFile(exportEvents, "csv")}
             />
           )}
 
-          {view === "export" && (
-            <ExportPanel
-              events={exportEvents}
-              onJson={() => downloadFile("json")}
-              onCsv={() => downloadFile("csv")}
-            />
-          )}
+          {view === "friends" && <FriendsPanel />}
 
-          {view === "safety" && <SafetyPanel joinedCount={joined.length} />}
-
-          {view === "profile" && <ProfilePanel />}
-
-          {view === "settings" && <SettingsPanel />}
+          {view === "settings" && <SettingsPanel joinedCount={joined.length} />}
         </div>
       </section>
 
@@ -273,24 +267,25 @@ export function EventBrowser() {
         onClose={() => setSelected(null)}
         onSave={(eventId) => toggleSaved(eventId)}
         onJoin={(eventId) => toggleJoined(eventId)}
+        onExportJson={(event) =>
+          downloadFile([event], "json", `dvig-${event.id}`)
+        }
+        onExportCsv={(event) => downloadFile([event], "csv", `dvig-${event.id}`)}
       />
     </main>
   );
 }
 
-function AppMenu({
-  savedCount,
-  joinedCount,
-  eventsCount,
-  onNavigate,
-}: {
-  savedCount: number;
-  joinedCount: number;
-  eventsCount: number;
-  onNavigate: (view: AppView) => void;
-}) {
+function AppMenu({ onNavigate }: { onNavigate: (view: AppView) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const navigate = (view: AppView) => {
+    onNavigate(view);
+    setOpen(false);
+  };
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label="Открыть меню"
         render={
@@ -306,68 +301,348 @@ function AppMenu({
       <SheetContent className="w-full sm:max-w-sm">
         <SheetHeader>
           <SheetTitle>Меню</SheetTitle>
-          <SheetDescription>Профиль, события и настройки ДВИГ.</SheetDescription>
+          <SheetDescription>Навигация по разделам ДВИГ.</SheetDescription>
         </SheetHeader>
-        <div className="space-y-3 px-4">
-          <MenuProfile />
-          <div className="grid grid-cols-3 gap-2">
-            <Metric label="Заявки" value={joinedCount} />
-            <Metric label="Сохранено" value={savedCount} />
-            <Metric label="Событий" value={eventsCount} />
-          </div>
-          <MenuAction
-            icon={UsersRound}
-            title="Мои события"
-            text={`${joinedCount} заявок · ${savedCount} сохранено`}
-            onClick={() => onNavigate("collection")}
-          />
-          <MenuAction
-            icon={Sparkles}
-            title="Популярное"
-            text="Рейтинг событий по интересу"
-            onClick={() => onNavigate("popular")}
-          />
-          <MenuAction
-            icon={Download}
-            title="Экспорт"
-            text="JSON/CSV для подборки или текущего поиска"
-            onClick={() => onNavigate("export")}
-          />
-          <MenuAction
-            icon={ShieldCheck}
-            title="Безопасность"
-            text="Чек-ин, тревожная кнопка, доверенный контакт"
-            onClick={() => onNavigate("safety")}
-          />
-          <MenuAction
-            icon={UserCheck}
-            title="Профиль и след"
-            text="Скрыть профиль, архив данных, удаление"
-            onClick={() => onNavigate("profile")}
-          />
-          <MenuAction
-            icon={Settings}
-            title="Настройки"
-            text="Источники, Telegram, режим данных"
-            onClick={() => onNavigate("settings")}
-          />
-        </div>
+        <nav className="px-4">
+          <ul className="divide-y divide-border/50">
+            <MenuNavItem
+              icon={Home}
+              title="Главная"
+              href="/"
+              onClick={() => setOpen(false)}
+            />
+            <MenuNavItem
+              icon={UserCheck}
+              title="Мой профиль"
+              onClick={() => navigate("profile")}
+            />
+            <MenuNavItem
+              icon={CalendarDays}
+              title="Мои события"
+              onClick={() => navigate("collection")}
+            />
+            <MenuNavItem
+              icon={UsersRound}
+              title="Мои друзья"
+              onClick={() => navigate("friends")}
+            />
+            <MenuNavItem
+              icon={Settings}
+              title="Настройки"
+              onClick={() => navigate("settings")}
+            />
+          </ul>
+        </nav>
       </SheetContent>
     </Sheet>
   );
+}
+
+function EventSearchPanel({
+  resultCount,
+  query,
+  onQueryChange,
+  selectedCategories,
+  onSelectedCategoriesChange,
+  selectedDates,
+  onSelectedDatesChange,
+  customDateRange,
+  onCustomDateRangeChange,
+  selectedMoods,
+  onSelectedMoodsChange,
+  sortByPopular,
+  onSortByPopularChange,
+}: {
+  resultCount: number;
+  query: string;
+  onQueryChange: (value: string) => void;
+  selectedCategories: EventCategory[];
+  onSelectedCategoriesChange: (value: EventCategory[]) => void;
+  selectedDates: DatePreset[];
+  onSelectedDatesChange: (value: DatePreset[]) => void;
+  customDateRange: CustomDateRange | null;
+  onCustomDateRangeChange: (value: CustomDateRange | null) => void;
+  selectedMoods: EventMood[];
+  onSelectedMoodsChange: (value: EventMood[]) => void;
+  sortByPopular: boolean;
+  onSortByPopularChange: (value: boolean) => void;
+}) {
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const activeFilterCount = countActiveFilters(
+    selectedCategories,
+    selectedDates,
+    selectedMoods,
+    customDateRange
+  );
+  const hasQuery = query.trim().length > 0;
+  const hasActiveChips = activeFilterCount > 0 || hasQuery || sortByPopular;
+
+  const resetFilters = () => {
+    onSelectedCategoriesChange([]);
+    onSelectedDatesChange([]);
+    onCustomDateRangeChange(null);
+    onSelectedMoodsChange([]);
+    onQueryChange("");
+    onSortByPopularChange(false);
+  };
+
+  return (
+    <div className="dvig-panel p-4 sm:p-5">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Выберите мероприятие</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Сначала поиск и дата — затем категория и формат. Профиль и настройки — в меню справа
+          сверху.
+        </p>
+      </div>
+
+      <label className="relative mt-5 block">
+        <span className="sr-only">Поиск мероприятий</span>
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/80" />
+        <Input
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Кино, антикафе, лекция, место..."
+          className="h-11 rounded-lg border-border/60 bg-background/60 pl-10 text-base"
+        />
+      </label>
+
+      <div className="mt-4 flex flex-col gap-3 border-b border-border/40 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          type="button"
+          variant="outline"
+          className={`h-10 rounded-full px-4 ${filtersOpen ? "border-primary/40 bg-primary/5" : ""}`}
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+        >
+          <SlidersHorizontal className="size-4" />
+          {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
+          {activeFilterCount > 0 && (
+            <Badge className="ml-0.5 rounded-full px-1.5 py-0 text-xs tabular-nums">
+              {activeFilterCount}
+            </Badge>
+          )}
+          {filtersOpen ? (
+            <ChevronUp className="size-4 opacity-70" />
+          ) : (
+            <ChevronDown className="size-4 opacity-70" />
+          )}
+        </Button>
+
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{formatEventCount(resultCount)}</span>{" "}
+            найдено
+          </p>
+          <FilterPill
+            active={sortByPopular}
+            onClick={() => onSortByPopularChange(!sortByPopular)}
+          >
+            Популярное
+          </FilterPill>
+        </div>
+      </div>
+
+      {filtersOpen && (
+        <div className="mt-4 space-y-5">
+          <FilterGroup label="Когда">
+            <div className="flex flex-wrap items-center gap-2">
+              {dateFilters.map((item) => (
+                <FilterPill
+                  key={item}
+                  active={selectedDates.includes(item)}
+                  onClick={() =>
+                    onSelectedDatesChange(toggleInList(selectedDates, item))
+                  }
+                >
+                  {item}
+                </FilterPill>
+              ))}
+              <DateRangePicker
+                value={customDateRange}
+                onChange={onCustomDateRangeChange}
+              />
+            </div>
+          </FilterGroup>
+
+          <FilterGroup label="Формат встречи">
+            <div className="flex flex-wrap gap-2">
+              {moodFilters.map((item) => (
+                <FilterPill
+                  key={item}
+                  active={selectedMoods.includes(item)}
+                  onClick={() =>
+                    onSelectedMoodsChange(toggleInList(selectedMoods, item))
+                  }
+                >
+                  {moodLabels[item]}
+                </FilterPill>
+              ))}
+            </div>
+          </FilterGroup>
+
+          <FilterGroup label="Категория">
+            <CategoryPicker
+              value={selectedCategories}
+              onChange={onSelectedCategoriesChange}
+            />
+          </FilterGroup>
+        </div>
+      )}
+
+      {hasActiveChips && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Активно:
+          </span>
+          {hasQuery && (
+            <ActiveFilterChip
+              label={`«${query.trim()}»`}
+              onRemove={() => onQueryChange("")}
+            />
+          )}
+          {selectedCategories.map((item) => (
+            <ActiveFilterChip
+              key={item}
+              label={item}
+              onRemove={() =>
+                onSelectedCategoriesChange(selectedCategories.filter((value) => value !== item))
+              }
+            />
+          ))}
+          {selectedDates.map((item) => (
+            <ActiveFilterChip
+              key={item}
+              label={item}
+              onRemove={() =>
+                onSelectedDatesChange(selectedDates.filter((value) => value !== item))
+              }
+            />
+          ))}
+          {customDateRange && (
+            <ActiveFilterChip
+              label={formatCustomDateRangeLabel(customDateRange)}
+              onRemove={() => onCustomDateRangeChange(null)}
+            />
+          )}
+          {selectedMoods.map((item) => (
+            <ActiveFilterChip
+              key={item}
+              label={moodLabels[item]}
+              onRemove={() =>
+                onSelectedMoodsChange(selectedMoods.filter((value) => value !== item))
+              }
+            />
+          ))}
+          {sortByPopular && (
+            <ActiveFilterChip
+              label="Популярное"
+              onRemove={() => onSortByPopularChange(false)}
+            />
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-full px-2 text-xs text-muted-foreground"
+            onClick={resetFilters}
+          >
+            Сбросить всё
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium">{label}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        active
+          ? "rounded-full border border-primary/40 bg-primary/15 px-3.5 py-1.5 text-sm font-medium text-primary shadow-sm shadow-primary/10"
+          : "rounded-full border border-border/50 bg-card/40 px-3.5 py-1.5 text-sm font-medium text-foreground/90 transition hover:border-primary/30 hover:bg-card/70"
+      }
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActiveFilterChip({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/50 py-1 pl-2.5 pr-1 text-sm">
+      {label}
+      <button
+        type="button"
+        className="rounded-full p-0.5 text-muted-foreground transition hover:bg-background hover:text-foreground"
+        aria-label={`Убрать фильтр «${label}»`}
+        onClick={onRemove}
+      >
+        <X className="size-3.5" />
+      </button>
+    </span>
+  );
+}
+
+function formatEventCount(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+
+  if (mod100 >= 11 && mod100 <= 14) {
+    return `${count} встреч`;
+  }
+  if (mod10 === 1) {
+    return `${count} встреча`;
+  }
+  if (mod10 >= 2 && mod10 <= 4) {
+    return `${count} встречи`;
+  }
+  return `${count} встреч`;
 }
 
 function CategoryPicker({
   value,
   onChange,
 }: {
-  value: CategoryFilter;
-  onChange: (value: CategoryFilter) => void;
+  value: EventCategory[];
+  onChange: (value: EventCategory[]) => void;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-5">
-      {categories.map((item) => {
-        const isActive = value === item;
+    <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {categoryFilters.map((item) => {
+        const isActive = value.includes(item);
 
         return (
           <button
@@ -375,10 +650,10 @@ function CategoryPicker({
             type="button"
             className={
               isActive
-                ? "dvig-category-active px-4 py-3 text-left text-sm"
-                : "dvig-category-inactive px-4 py-3 text-left text-sm"
+                ? "dvig-category-active shrink-0 rounded-full px-4 py-2 text-sm"
+                : "dvig-category-inactive shrink-0 rounded-full px-4 py-2 text-sm"
             }
-            onClick={() => onChange(item)}
+            onClick={() => onChange(toggleInList(value, item))}
           >
             {item}
           </button>
@@ -388,45 +663,120 @@ function CategoryPicker({
   );
 }
 
-function MenuProfile() {
+function SectionTitle({ view }: { view: AppView }) {
+  const titles: Record<Exclude<AppView, "search">, string> = {
+    profile: "Мой профиль",
+    collection: "Мои события",
+    friends: "Мои друзья",
+    settings: "Настройки",
+  };
+
+  if (view === "search") return null;
+
+  return <h1 className="text-2xl font-bold tracking-tight">{titles[view]}</h1>;
+}
+
+function MenuNavItem({
+  icon: Icon,
+  title,
+  href,
+  onClick,
+}: {
+  icon: typeof Search;
+  title: string;
+  href?: string;
+  onClick: () => void;
+}) {
+  const className =
+    "flex w-full items-center gap-3 py-4 text-left text-base font-medium transition hover:text-primary";
+
   return (
-    <div className="dvig-panel-muted p-4">
-      <div className="flex items-center gap-3">
-        <Avatar>
-          <AvatarFallback>А</AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-semibold">Алина</p>
-          <p className="text-sm text-muted-foreground">профиль проверяется · СПб</p>
+    <li>
+      {href ? (
+        <Link href={href} className={className} onClick={onClick}>
+          <Icon className="size-5 shrink-0 text-primary" />
+          {title}
+        </Link>
+      ) : (
+        <button type="button" className={className} onClick={onClick}>
+          <Icon className="size-5 shrink-0 text-primary" />
+          {title}
+        </button>
+      )}
+    </li>
+  );
+}
+
+function ProfileView({
+  savedCount,
+  joinedCount,
+}: {
+  savedCount: number;
+  joinedCount: number;
+}) {
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="dvig-panel p-5">
+        <div className="flex items-center gap-4">
+          <Avatar className="size-16">
+            <AvatarFallback className="text-lg">А</AvatarFallback>
+          </Avatar>
+          <div>
+            <h2 className="text-2xl font-semibold">Алина</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Санкт-Петербург · профиль проверяется</p>
+          </div>
+        </div>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          Здесь видно, как вы выглядите для других участников: интересы, верификация и
+          статус заявок. Управление приватностью и цифровым следом — в настройках.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {["кино", "настолки", "культура", "спокойные встречи"].map((tag) => (
+            <Badge key={tag} variant="outline" className="rounded-md">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <Metric label="Заявки" value={joinedCount} />
+        <Metric label="Сохранено" value={savedCount} />
+        <div className="dvig-panel-muted p-4 text-sm leading-6 text-muted-foreground">
+          Верификация откроет встречи один на один и отметку «проверенный профиль».
         </div>
       </div>
     </div>
   );
 }
 
-function MenuAction({
-  icon: Icon,
-  title,
-  text,
-  onClick,
-}: {
-  icon: typeof Search;
-  title: string;
-  text: string;
-  onClick: () => void;
-}) {
+function FriendsPanel() {
+  const friends = [
+    { name: "Маша", status: "идёт на «Вечер настолок»" },
+    { name: "Илья", status: "сохранил «Лекцию в Эрарте»" },
+    { name: "Катя", status: "свободна в выходные" },
+  ];
+
   return (
-    <button
-      type="button"
-      className="flex w-full items-start gap-3 dvig-panel p-4 text-left transition hover:bg-muted/50"
-      onClick={onClick}
-    >
-      <Icon className="mt-1 size-5 shrink-0 text-primary" />
-      <span>
-        <span className="block font-semibold">{title}</span>
-        <span className="mt-1 block text-sm leading-5 text-muted-foreground">{text}</span>
-      </span>
-    </button>
+    <div className="mt-5 space-y-4">
+      <div className="dvig-panel p-5">
+        <h2 className="text-xl font-semibold">Мои друзья</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Список друзей и их планы на встречи. В демо — мок, в продукте здесь будут
+          приглашения и совместные подборки.
+        </p>
+      </div>
+      {friends.map((friend) => (
+        <div key={friend.name} className="flex items-center gap-3 dvig-panel p-4">
+          <Avatar>
+            <AvatarFallback>{friend.name.slice(0, 1)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold">{friend.name}</p>
+            <p className="text-sm text-muted-foreground">{friend.status}</p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -449,7 +799,9 @@ function EventGrid({
     return (
       <div className="mt-5 dvig-panel p-8 text-center">
         <p className="text-lg font-medium">Нет встреч под такие фильтры.</p>
-        <p className="mt-2 text-sm text-muted-foreground">Сбросьте категорию, дату или поисковый запрос.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Измените поиск, дату или нажмите «Сбросить всё» в фильтрах.
+        </p>
       </div>
     );
   }
@@ -478,6 +830,8 @@ function EventSheet({
   onClose,
   onSave,
   onJoin,
+  onExportJson,
+  onExportCsv,
 }: {
   event: DvigEvent | null;
   isSaved: boolean;
@@ -485,6 +839,8 @@ function EventSheet({
   onClose: () => void;
   onSave: (eventId: string) => void;
   onJoin: (eventId: string) => void;
+  onExportJson: (event: DvigEvent) => void;
+  onExportCsv: (event: DvigEvent) => void;
 }) {
   return (
     <Sheet open={Boolean(event)} onOpenChange={(open) => !open && onClose()}>
@@ -591,9 +947,9 @@ function EventSheet({
                 {event.place}, {event.address}
               </div>
             </div>
-            <SheetFooter>
+            <SheetFooter className="flex-col gap-2 sm:flex-col">
               <Button
-                className="dvig-btn-primary rounded-lg"
+                className="dvig-btn-primary w-full rounded-lg"
                 onClick={() => onJoin(event.id)}
               >
                 {isJoined ? (
@@ -605,9 +961,31 @@ function EventSheet({
                   "Подать заявку"
                 )}
               </Button>
-              <Button variant="outline" className="rounded-md" onClick={() => onSave(event.id)}>
+              <Button
+                variant="outline"
+                className="w-full rounded-md"
+                onClick={() => onSave(event.id)}
+              >
                 {isSaved ? "Убрать из подборки" : "Сохранить в подборку"}
               </Button>
+              <div className="flex w-full gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-md"
+                  onClick={() => onExportJson(event)}
+                >
+                  <Download className="size-4" />
+                  JSON
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-md"
+                  onClick={() => onExportCsv(event)}
+                >
+                  <Download className="size-4" />
+                  CSV
+                </Button>
+              </div>
             </SheetFooter>
           </>
         )}
@@ -687,61 +1065,26 @@ function EventCard({
   );
 }
 
-function PopularRow({
-  rank,
-  event,
-  isSaved,
-  onOpen,
-  onSave,
-}: {
-  rank: number;
-  event: DvigEvent;
-  isSaved: boolean;
-  onOpen: () => void;
-  onSave: () => void;
-}) {
-  return (
-    <div className="grid gap-3 dvig-panel p-4 md:grid-cols-[56px_1fr_auto] md:items-center">
-      <div className="flex size-10 items-center justify-center rounded-lg bg-primary/20 font-semibold text-primary">
-        {rank}
-      </div>
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold">{event.title}</h3>
-          <Badge variant="outline" className="rounded-md">
-            {event.popularityScore} баллов
-          </Badge>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {event.participants} идут · {event.rating} рейтинг · {event.place}
-        </p>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" className="rounded-md" onClick={onSave}>
-          {isSaved ? "В подборке" : "Сохранить"}
-        </Button>
-        <Button className="dvig-btn-primary rounded-lg" onClick={onOpen}>
-          Открыть
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function CollectionPanel({
   savedEvents,
   digest,
   copyState,
+  exportEvents,
   onCopy,
   onOpen,
   onRemove,
+  onExportJson,
+  onExportCsv,
 }: {
   savedEvents: DvigEvent[];
   digest: string;
   copyState: string;
+  exportEvents: DvigEvent[];
   onCopy: () => void;
   onOpen: (event: DvigEvent) => void;
   onRemove: (eventId: string) => void;
+  onExportJson: () => void;
+  onExportCsv: () => void;
 }) {
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
@@ -789,83 +1132,95 @@ function CollectionPanel({
           {digest}
         </pre>
       </div>
-    </div>
-  );
-}
-
-function ExportPanel({
-  events: exportEvents,
-  onJson,
-  onCsv,
-}: {
-  events: DvigEvent[];
-  onJson: () => void;
-  onCsv: () => void;
-}) {
-  return (
-    <div className="mt-5 dvig-panel p-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h3 className="text-xl font-semibold">Экспорт событий</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Если есть сохраненная подборка, экспортируется она. Если подборка пустая,
-            экспортируются события из текущего поиска.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button className="dvig-btn-primary rounded-lg" onClick={onJson}>
-            <Download className="size-4" />
-            JSON
-          </Button>
-          <Button variant="outline" className="rounded-md" onClick={onCsv}>
-            <Download className="size-4" />
-            CSV
-          </Button>
-        </div>
-      </div>
-      <div className="mt-5 overflow-hidden rounded-xl border border-border/50">
-        {exportEvents.map((event) => (
-          <div
-            key={event.id}
-            className="grid gap-2 border-b border-border/50 p-3 text-sm last:border-b-0 md:grid-cols-[1fr_120px_120px_100px]"
-          >
-            <span className="font-medium">{event.title}</span>
-            <span>{event.category}</span>
-            <span>{event.date}</span>
-            <span>{event.price}</span>
+      <div className="lg:col-span-2 dvig-panel p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Экспорт подборки</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {savedEvents.length > 0
+                ? "Скачайте сохранённые события в JSON или CSV."
+                : "Подборка пустая — экспортируются события из текущего поиска на главной."}
+            </p>
           </div>
-        ))}
+          <div className="flex gap-2">
+            <Button className="dvig-btn-primary rounded-lg" onClick={onExportJson}>
+              <Download className="size-4" />
+              JSON
+            </Button>
+            <Button variant="outline" className="rounded-md" onClick={onExportCsv}>
+              <Download className="size-4" />
+              CSV
+            </Button>
+          </div>
+        </div>
+        <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
+          {exportEvents.slice(0, 5).map((event) => (
+            <div
+              key={event.id}
+              className="grid gap-2 border-b border-border/50 p-3 text-sm last:border-b-0 md:grid-cols-[1fr_120px_120px_100px]"
+            >
+              <span className="font-medium">{event.title}</span>
+              <span>{event.category}</span>
+              <span>{event.date}</span>
+              <span>{event.price}</span>
+            </div>
+          ))}
+          {exportEvents.length > 5 && (
+            <p className="p-3 text-sm text-muted-foreground">
+              и ещё {exportEvents.length - 5} событий…
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function SettingsPanel() {
+function SettingsPanel({ joinedCount }: { joinedCount: number }) {
   return (
-    <div className="mt-5 grid gap-4 md:grid-cols-2">
-      {[
-        ["Город", "Санкт-Петербург", "В следующем этапе здесь будет выбор города и источник афиши."],
-        ["ИИ-резюме", "Демо-режим", "Сейчас текст локальный. Реальные OpenAI/GigaChat ключи должны жить только на сервере."],
-        ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
-        ["Данные", "Mock", "Интерфейс готов под подключение KudaGo, но текущая версия стабильна без сети."],
-      ].map(([title, value, text]) => (
-        <div key={title} className="dvig-panel p-4">
-          <span className="text-sm text-muted-foreground/80">{title}</span>
-          <h3 className="mt-1 text-lg font-semibold">{value}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+    <div className="mt-5 space-y-8">
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">Приложение</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            ["Город", "Санкт-Петербург", "В следующем этапе здесь будет выбор города и источник афиши."],
+            ["ИИ-резюме", "Демо-режим", "Сейчас текст локальный. Реальные OpenAI/GigaChat ключи должны жить только на сервере."],
+            ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
+            ["Данные", "Mock", "Интерфейс готов под подключение KudaGo, но текущая версия стабильна без сети."],
+          ].map(([title, value, text]) => (
+            <div key={title} className="dvig-panel p-4">
+              <span className="text-sm text-muted-foreground/80">{title}</span>
+              <h3 className="mt-1 text-lg font-semibold">{value}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+            </div>
+          ))}
         </div>
-      ))}
+      </section>
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">Безопасность</h2>
+        <SafetyPanel joinedCount={joinedCount} embedded />
+      </section>
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">Профиль и цифровой след</h2>
+        <ProfilePanel embedded />
+      </section>
     </div>
   );
 }
 
-function SafetyPanel({ joinedCount }: { joinedCount: number }) {
+function SafetyPanel({
+  joinedCount,
+  embedded = false,
+}: {
+  joinedCount: number;
+  embedded?: boolean;
+}) {
   const [panicState, setPanicState] = useState("Не активирована");
   const [checkInState, setCheckInState] = useState("Ожидает встречи");
   const [trustedContact, setTrustedContact] = useState("Алина, +7 900 000-00-00");
 
   return (
-    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
+    <div className={embedded ? "grid gap-4 lg:grid-cols-[1fr_420px]" : "mt-5 grid gap-4 lg:grid-cols-[1fr_420px]"}>
       <div className="space-y-4">
         <div className="dvig-panel p-5">
           <div className="flex items-start gap-3">
@@ -954,13 +1309,13 @@ function SafetyPanel({ joinedCount }: { joinedCount: number }) {
   );
 }
 
-function ProfilePanel() {
+function ProfilePanel({ embedded = false }: { embedded?: boolean }) {
   const [visibility, setVisibility] = useState("Профиль виден только подтвержденным участникам встреч");
   const [exportState, setExportState] = useState("Архив не запрошен");
   const [deleteState, setDeleteState] = useState("Профиль активен");
 
   return (
-    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
+    <div className={embedded ? "grid gap-4 lg:grid-cols-[1fr_420px]" : "mt-5 grid gap-4 lg:grid-cols-[1fr_420px]"}>
       <div className="dvig-panel p-5">
         <h3 className="text-xl font-semibold">Профиль и цифровой след</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -1074,36 +1429,6 @@ function TraceItem({ title, value }: { title: string; value: string }) {
       <h4 className="font-semibold">{title}</h4>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{value}</p>
     </div>
-  );
-}
-
-function FilterSelect({
-  label,
-  value,
-  values,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  values: readonly string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block text-sm font-medium">
-      {label}
-      <Select value={value} onValueChange={(nextValue) => nextValue && onChange(nextValue)}>
-        <SelectTrigger className="mt-2 w-full rounded-md">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {values.map((item) => (
-            <SelectItem key={item} value={item}>
-              {item}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </label>
   );
 }
 
