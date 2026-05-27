@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import { DvigLogo } from "@/components/dvig-logo";
 import {
   BellRing,
   CalendarDays,
@@ -148,7 +147,11 @@ export function EventBrowser() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-3">
-              <DvigLogo size="sm" />
+              <img
+                src="/dvig-logo.png"
+                alt="ДВИГ"
+                className="dvig-logo size-9"
+              />
               <span className="font-semibold">ДВИГ</span>
             </Link>
             <Badge variant="outline" className="rounded-md lg:hidden">
