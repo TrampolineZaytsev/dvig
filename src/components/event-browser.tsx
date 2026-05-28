@@ -57,6 +57,8 @@ import {
 } from "@/components/ui/sheet";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { KudagoCategoryPicker } from "@/components/kudago-category-picker";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import {
   buildTelegramDigest,
   categoryFilters,
@@ -99,15 +101,27 @@ function countActiveFilters(
   extraCategorySlugs: string[],
   selectedDates: DatePreset[],
   selectedMoods: EventMood[],
-  customDateRange: CustomDateRange | null
+  customDateRange: CustomDateRange | null,
+  onlySpotsLeft: boolean
 ): number {
   return (
     selectedCategories.length +
     extraCategorySlugs.length +
     selectedDates.length +
     selectedMoods.length +
-    (customDateRange ? 1 : 0)
+    (customDateRange ? 1 : 0) +
+    (onlySpotsLeft ? 1 : 0)
   );
+}
+
+function formatGroupLine(event: DvigEvent) {
+  return `В группе ${event.participants} · свободно ${event.spotsLeft} · до ${event.groupCapacity} человек`;
+}
+
+function mockParticipantInitials(eventId: string): string[] {
+  const hash = eventId.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const names = ["А", "М", "И", "К", "С", "Д"];
+  return [names[hash % names.length], names[(hash + 3) % names.length], names[(hash + 5) % names.length]];
 }
 
 export function EventBrowser() {
@@ -127,12 +141,19 @@ export function EventBrowser() {
   const [savedEventsCache, setSavedEventsCache] = useState<Record<string, DvigEvent>>({});
   const [joined, setJoined] = useState<string[]>([]);
   const [copyState, setCopyState] = useState("Скопировать для Telegram");
+  const [onlySpotsLeft, setOnlySpotsLeft] = useState(false);
+  const [joinNotice, setJoinNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    const requestedCategory = new URLSearchParams(window.location.search).get("category");
+    const params = new URLSearchParams(window.location.search);
+    const requestedCategory = params.get("category");
+    const requestedView = params.get("view");
 
     if (categoryFilters.includes(requestedCategory as EventCategory)) {
       setSelectedCategories([requestedCategory as EventCategory]);
+    }
+    if (requestedView === "settings") {
+      setView("settings");
     }
   }, []);
 
@@ -181,8 +202,9 @@ export function EventBrowser() {
           ));
       const dateMatch = eventMatchesDateFilter(event, selectedDates, customDateRange);
       const moodMatch = selectedMoods.length === 0 || selectedMoods.includes(event.mood);
+      const spotsMatch = !onlySpotsLeft || event.spotsLeft > 0;
 
-      return categoryMatch && dateMatch && moodMatch;
+      return categoryMatch && dateMatch && moodMatch && spotsMatch;
     });
 
     if (sortBy === "popular") {
@@ -202,6 +224,7 @@ export function EventBrowser() {
     selectedCategories,
     selectedDates,
     selectedMoods,
+    onlySpotsLeft,
     sortBy,
   ]);
 
@@ -229,9 +252,14 @@ export function EventBrowser() {
   };
 
   const toggleJoined = (eventId: string) => {
-    setJoined((current) =>
-      current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId]
-    );
+    setJoined((current) => {
+      if (current.includes(eventId)) {
+        return current.filter((id) => id !== eventId);
+      }
+      setJoinNotice("В демо заявка сохраняется только у вас в браузере.");
+      window.setTimeout(() => setJoinNotice(null), 4500);
+      return [...current, eventId];
+    });
   };
 
   const downloadFile = (items: DvigEvent[], format: "json" | "csv", filename = "dvig-events") => {
@@ -258,26 +286,22 @@ export function EventBrowser() {
 
   return (
     <main className="dvig-page min-h-screen text-foreground">
-      <header className="dvig-header">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-0.5">
-              <img
-                src="/dvig-logo.png"
-                alt="ДВИГ"
-                className="dvig-logo size-14"
-              />
-              <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
-            </Link>
-            <Badge variant="outline" className="rounded-md lg:hidden">
-              webapp
-            </Badge>
-          </div>
-          <div className="flex items-center justify-end">
-            <AppMenu onNavigate={setView} />
-          </div>
+      <SiteHeader trailing={<AppMenu onNavigate={setView} />} />
+
+      <div
+        className="sticky top-0 z-30 border-b border-primary/20 bg-[#1a1028]/95 px-4 py-2.5 text-center text-sm backdrop-blur-md sm:px-6"
+        role="status"
+      >
+        Демонстрационный интерфейс. Заявки, группы и safety — локально в браузере, без сервера.
+      </div>
+
+      {joinNotice && (
+        <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+          <p className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-center text-sm">
+            {joinNotice}
+          </p>
         </div>
-      </header>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-5">
@@ -299,6 +323,8 @@ export function EventBrowser() {
               onSelectedMoodsChange={setSelectedMoods}
               sortBy={sortBy}
               onSortByChange={setSortBy}
+              onlySpotsLeft={onlySpotsLeft}
+              onOnlySpotsLeftChange={setOnlySpotsLeft}
             />
           ) : (
             <div className="flex items-center justify-between gap-4">
@@ -377,6 +403,8 @@ export function EventBrowser() {
         }
         onExportCsv={(event) => downloadFile([event], "csv", `dvig-${event.id}`)}
       />
+
+      <SiteFooter />
     </main>
   );
 }
@@ -460,6 +488,8 @@ function EventSearchPanel({
   onSelectedMoodsChange,
   sortBy,
   onSortByChange,
+  onlySpotsLeft,
+  onOnlySpotsLeftChange,
 }: {
   resultCount: number;
   loading: boolean;
@@ -477,6 +507,8 @@ function EventSearchPanel({
   onSelectedMoodsChange: (value: EventMood[]) => void;
   sortBy: EventSort;
   onSortByChange: (value: EventSort) => void;
+  onlySpotsLeft: boolean;
+  onOnlySpotsLeftChange: (value: boolean) => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const activeFilterCount = countActiveFilters(
@@ -484,7 +516,8 @@ function EventSearchPanel({
     extraCategorySlugs,
     selectedDates,
     selectedMoods,
-    customDateRange
+    customDateRange,
+    onlySpotsLeft
   );
   const hasQuery = query.trim().length > 0;
   const hasActiveChips = activeFilterCount > 0 || hasQuery;
@@ -495,6 +528,7 @@ function EventSearchPanel({
     onSelectedDatesChange([]);
     onCustomDateRangeChange(null);
     onSelectedMoodsChange([]);
+    onOnlySpotsLeftChange(false);
     onQueryChange("");
   };
 
@@ -617,6 +651,18 @@ function EventSearchPanel({
               onExtraSlugsChange={onExtraCategorySlugsChange}
             />
           </FilterGroup>
+
+          <FilterGroup label="Группа">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={onlySpotsLeft}
+                onChange={(event) => onOnlySpotsLeftChange(event.target.checked)}
+                className="size-4 rounded border-border accent-primary"
+              />
+              Есть свободные места в группе
+            </label>
+          </FilterGroup>
         </div>
       )}
 
@@ -664,6 +710,12 @@ function EventSearchPanel({
               }
             />
           ))}
+          {onlySpotsLeft && (
+            <ActiveFilterChip
+              label="Есть места в группе"
+              onRemove={() => onOnlySpotsLeftChange(false)}
+            />
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -821,7 +873,8 @@ function ProfileView({
         </div>
         <p className="mt-5 text-sm leading-6 text-muted-foreground">
           Здесь видно, как вы выглядите для других участников: интересы, верификация и
-          статус заявок. Управление приватностью и цифровым следом — в настройках.
+          статус заявок. На первом этапе — встречи в группе от 5 человек, не 1-на-1 без
+          контура безопасности. Управление приватностью — в настройках.
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {["кино", "настолки", "культура", "спокойные встречи"].map((tag) => (
@@ -854,8 +907,8 @@ function FriendsPanel() {
       <div className="dvig-panel p-5">
         <h2 className="text-xl font-semibold">Мои друзья</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Список друзей и их планы на встречи. В демо — мок, в продукте здесь будут
-          приглашения и совместные подборки.
+          Список друзей и их планы на встречи. В демо — мок; в продукте — социальный граф:
+          кто идёт на то же событие, приглашения и совместные подборки.
         </p>
       </div>
       {friends.map((friend) => (
@@ -978,7 +1031,7 @@ function EventSheet({
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <Info label="Дата" value={`${event.date}, ${event.time}`} />
                 <Info label="Цена" value={event.price} />
-                <Info label="Участники" value={`${event.participants} уже идут`} />
+                <Info label="Группа" value={formatGroupLine(event)} />
                 <Info label="Возраст" value={event.ageRestriction} />
               </div>
               <Separator />
@@ -988,15 +1041,34 @@ function EventSheet({
                   Подробная карточка
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">{event.description}</p>
-                <p className="mt-2 text-xs text-muted-foreground/80">
-                  Источник: {event.source} · обновлено {event.updatedAt}
+              </div>
+              <div className="dvig-panel p-4">
+                <div className="mb-2 font-medium">Источник</div>
+                <p className="text-sm text-muted-foreground">
+                  <a
+                    href={event.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {event.source}
+                  </a>
+                  {" · "}
+                  данные от {event.updatedAt}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Проверьте время, цену и адрес на сайте организатора — агрегатор не
+                  гарантирует актуальность.
                 </p>
               </div>
               <div className="dvig-panel-muted p-4">
-                <div className="mb-3 flex items-center gap-2 font-medium">
+                <div className="mb-1 flex items-center gap-2 font-medium">
                   <Sparkles className="size-4 text-primary" />
-                  ИИ-резюме
+                  Кратко о событии
                 </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  По описанию организатора / KudaGo, не нейросеть
+                </p>
                 <div className="grid gap-3 text-sm leading-6 text-muted-foreground">
                   <SummaryItem label="Почему стоит пойти" value={event.aiSummary.why} />
                   <SummaryItem label="Атмосфера" value={event.aiSummary.vibe} />
@@ -1022,6 +1094,16 @@ function EventSheet({
                 </div>
               </div>
               <div className="dvig-panel-muted p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  {mockParticipantInitials(event.id).map((initial) => (
+                    <Avatar key={initial} className="size-9 border border-border/50">
+                      <AvatarFallback className="text-xs">{initial}</AvatarFallback>
+                    </Avatar>
+                  ))}
+                  <Badge variant="outline" className="rounded-md text-xs">
+                    участники · демо
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarFallback>{event.moderator.slice(0, 1)}</AvatarFallback>
@@ -1047,7 +1129,11 @@ function EventSheet({
                   </span>
                   <span className="flex items-center gap-2">
                     <Check className="size-4 text-primary" />
-                    модератор видит заявки до подтверждения
+                    группа от {event.groupCapacity} человек — не 1-на-1 на первом этапе
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Check className="size-4 text-primary" />
+                    модератор видит заявки до подтверждения (в продукте)
                   </span>
                   <span className="flex items-center gap-2">
                     <Check className="size-4 text-primary" />
@@ -1137,10 +1223,8 @@ function EventCard({
       }
     : undefined;
 
-  const socialLine =
-    event.source === "KudaGo"
-      ? `♥ ${event.popularityScore} · 💬 ${event.commentsCount ?? 0}`
-      : `${event.participants} идут · ${event.spotsLeft} мест`;
+  const groupLine = formatGroupLine(event);
+  const kudagoEngagement = `♥ ${event.popularityScore} · 💬 ${event.commentsCount ?? 0}`;
 
   return (
     <Card
@@ -1150,9 +1234,16 @@ function EventCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
-            <Badge className="rounded-md bg-[#e6efe9] text-primary hover:bg-[#e6efe9]">
-              {event.category}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge className="rounded-md bg-[#e6efe9] text-primary hover:bg-[#e6efe9]">
+                {event.category}
+              </Badge>
+              {event.address ? (
+                <Badge variant="outline" className="rounded-md">
+                  Публичное место
+                </Badge>
+              ) : null}
+            </div>
             <CardTitle className="text-xl">{event.title}</CardTitle>
           </div>
           <Button variant="ghost" size="icon" className="rounded-md" onClick={onSave}>
@@ -1168,17 +1259,17 @@ function EventCard({
             <CalendarDays className="size-4" />
             {event.date}, {event.time}
           </span>
-          <span className="flex items-center gap-2">
-            <UsersRound className="size-4" />
-            {socialLine}
+          <span className="flex items-center gap-2 sm:col-span-2">
+            <UsersRound className="size-4 shrink-0" />
+            {groupLine}
           </span>
           <span className="flex items-center gap-2">
             <MapPin className="size-4" />
             {event.place}
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2 text-xs">
             <Sparkles className="size-4" />
-            ИИ-резюме готово
+            Кратко о событии · {kudagoEngagement}
           </span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -1320,9 +1411,10 @@ function SettingsPanel({ joinedCount }: { joinedCount: number }) {
         <div className="grid gap-4 md:grid-cols-2">
           {[
             ["Город", "Санкт-Петербург", "В следующем этапе здесь будет выбор города и источник афиши."],
-            ["ИИ-резюме", "Демо-режим", "Сейчас текст локальный. Реальные OpenAI/GigaChat ключи должны жить только на сервере."],
+            ["Краткое описание", "Локальный текст", "Усечение описания KudaGo и шаблонные фразы — не LLM. Серверный ИИ — только с маркировкой и human-in-the-loop."],
             ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
-            ["Данные", "KudaGo", "Афиша подгружается из KudaGo API (СПб). Кэш ответов на сервере ~5 минут."],
+            ["Данные / KudaGo", "Афиша API", "События из KudaGo (СПб), кэш на сервере ~5 минут. Факты — у организатора."],
+            ["Социальный слой", "Демо", "Группы, заявки и участники — детерминированный мок в браузере, без базы данных."],
           ].map(([title, value, text]) => (
             <div key={title} className="dvig-panel p-4">
               <span className="text-sm text-muted-foreground/80">{title}</span>
@@ -1364,10 +1456,17 @@ function SafetyPanel({
             <div>
               <h3 className="text-xl font-semibold">Контур безопасности офлайн-встречи</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Мок показывает, какие реальные инструменты должны появиться до запуска
-                встреч один на один или малых групп: верификация, тревожная кнопка,
-                чек-ин, доверенный контакт, жалоба и выход из встречи.
+                Мок показывает, какие инструменты должны появиться до запуска встреч:
+                верификация, тревожная кнопка, чек-ин, доверенный контакт. Кнопки ниже{" "}
+                <strong className="text-foreground">не отправляют сигнал</strong> — только
+                меняют локальное состояние.
               </p>
+              <Link
+                href="/safety"
+                className="mt-3 inline-flex text-sm text-primary hover:underline"
+              >
+                Полная политика безопасности и данных →
+              </Link>
             </div>
           </div>
         </div>
@@ -1389,9 +1488,11 @@ function SafetyPanel({
             icon={BellRing}
             title="Тревожная кнопка"
             status={panicState}
-            text="В реальной версии отправляет геопозицию, событие и контакт модератору/доверенному лицу. В демо меняет состояние."
+            text="В продукте — эскалация модератору и доверенному контакту. В демо только меняется подпись, без отправки."
             action="Активировать"
-            onAction={() => setPanicState("Сигнал отправлен модератору и доверенному контакту")}
+            onAction={() =>
+              setPanicState("Демо: сигнал не отправлен (только локальная подпись)")
+            }
           />
           <SafetyCard
             icon={TriangleAlert}
@@ -1453,12 +1554,23 @@ function ProfilePanel({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className={embedded ? "grid gap-4 lg:grid-cols-[1fr_420px]" : "mt-5 grid gap-4 lg:grid-cols-[1fr_420px]"}>
       <div className="dvig-panel p-5">
-        <h3 className="text-xl font-semibold">Профиль и цифровой след</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-xl font-semibold">Профиль и цифровой след</h3>
+          <Badge variant="outline" className="rounded-md">
+            Демо
+          </Badge>
+        </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Пользователь должен понимать, какие данные остаются после заявок, чатов,
           жалоб и выходов из встреч. В демо это показано как сценарии управления
           данными.
         </p>
+        <Link
+          href="/safety#data"
+          className="mt-3 inline-flex text-sm text-primary hover:underline"
+        >
+          Что хранится и удаляется →
+        </Link>
         <div className="mt-5 grid gap-3">
           <TraceItem title="Профиль" value="имя, возраст, интересы, верификация, аватар" />
           <TraceItem title="События" value="сохраненные карточки, заявки, чек-ины и отмены" />

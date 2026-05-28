@@ -1,6 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, Dice5, Dumbbell, Film, Landmark, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  Dice5,
+  Dumbbell,
+  Film,
+  Landmark,
+  UsersRound,
+} from "lucide-react";
 
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 
 const categoryCards = [
@@ -42,23 +52,54 @@ const categoryCards = [
   },
 ];
 
+const steps = [
+  {
+    step: "1",
+    title: "Выбери интерес или событие",
+    text: "Афиша KudaGo по Санкт-Петербургу — кино, настолки, культура, спорт.",
+  },
+  {
+    step: "2",
+    title: "Группа и заявка",
+    text: "В демо — мок группы и локальная заявка в браузере, без сервера.",
+  },
+  {
+    step: "3",
+    title: "Офлайн в публичном месте",
+    text: "Встреча с модератором и контуром безопасности — в roadmap продукта.",
+  },
+];
+
+const b2bTeaser = [
+  "Заполнение непиковых слотов группами",
+  "Рост среднего чека за счёт групповых визитов",
+  "Аудитория 18–28 с заявленными интересами",
+  "Меньше рассинхрона даты и цены в каналах",
+];
+
+const competitors = [
+  {
+    title: "Dating",
+    text: "Витрина анкет и свайпы. Давление «свидания», слабый контекст общего дела.",
+  },
+  {
+    title: "Афиша",
+    text: "KudaGo, Timepad — узнать куда и когда. Не отвечают на «пойти не с кем».",
+  },
+  {
+    title: "ДВИГ",
+    text: "Дело → люди → офлайн. Группы, публичные места, не рекламируем романтику.",
+    highlight: true,
+  },
+];
+
 export default function Home() {
   return (
     <main className="dvig-page min-h-screen text-foreground">
-      <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between gap-4">
-          <Link href="/" className="group flex items-center gap-0.5">
-            <img
-              src="/dvig-logo.png"
-              alt="ДВИГ"
-              className="dvig-logo size-14 transition group-hover:shadow-primary/40"
-            />
-            <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
-          </Link>
-          <Badge className="dvig-badge hidden sm:inline-flex">Санкт-Петербург</Badge>
-        </header>
+      <SiteHeader />
 
-        <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[0.75fr_1.25fr]">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="grid items-center gap-10 py-10 lg:grid-cols-[0.75fr_1.25fr]">
           <div>
             <Badge className="dvig-badge-accent">Дело → люди → офлайн</Badge>
             <h1 className="mt-6 max-w-xl text-5xl font-extrabold leading-[1.02] sm:text-6xl lg:text-7xl">
@@ -67,11 +108,18 @@ export default function Home() {
               <span className="text-foreground">на событие.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg leading-8 text-muted-foreground">
-              Выбери формат встречи. Дальше покажем события, свободные места,
-              модератора и инструменты безопасности.
+              <strong className="font-medium text-foreground">Не dating:</strong> без витрины
+              анкет и свайпов. Сначала общее дело, потом люди, потом встреча в городе.
             </p>
+            <Link
+              href="/app"
+              className="dvig-btn-primary mt-8 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
+            >
+              Открыть демо
+              <ArrowRight className="size-4" />
+            </Link>
             <div className="mt-8 grid max-w-lg grid-cols-3 gap-3 text-sm">
-              {["публичные места", "модератор", "заявка"].map((item) => (
+              {["публичные места", "группа от 5", "заявка"].map((item) => (
                 <div
                   key={item}
                   className="rounded-lg border border-border/40 bg-card/50 px-3 py-3 backdrop-blur-sm"
@@ -115,16 +163,99 @@ export default function Home() {
               </Link>
             ))}
           </div>
-        </div>
+        </section>
 
-        <footer className="flex flex-col gap-3 border-t border-border/40 py-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>ДВИГ · живые встречи по интересам</span>
-          <span className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-primary" />
-            Проверенные встречи и управление цифровым следом
-          </span>
-        </footer>
-      </section>
+        <section className="border-t border-border/40 py-12">
+          <h2 className="text-2xl font-bold">Не рыночные знакомства</h2>
+          <p className="mt-4 max-w-3xl leading-8 text-muted-foreground">
+            Классическое dating-приложение — витрина, где одним жестом смахивают целую личность.
+            ДВИГ строит среду вокруг совместного занятия: кино, настолки, лекция, пробежка.
+            Романтика может случиться, но мы её не афишируем — фокус на дружбе и живом
+            общении.
+          </p>
+        </section>
+
+        <section className="border-t border-border/40 py-12">
+          <h2 className="text-2xl font-bold">Как это работает</h2>
+          <ol className="mt-6 grid gap-4 md:grid-cols-3">
+            {steps.map((item) => (
+              <li key={item.step} className="dvig-panel p-5">
+                <span className="text-3xl font-extrabold text-primary">{item.step}</span>
+                <h3 className="mt-3 font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="border-t border-border/40 py-12">
+          <h2 className="text-2xl font-bold">Почему не только афиша</h2>
+          <p className="mt-4 max-w-3xl leading-8 text-muted-foreground">
+            JTBD «пойти не с кем»: в ленте видно, куда пойти, но не с кем. KudaGo отвечает на
+            «куда» — ДВИГ в roadmap отвечает на «с кем»: группа, заявка, модератор, публичное
+            место. Сейчас на сайте — честное демо афиши и мок социального слоя.
+          </p>
+        </section>
+
+        <section className="border-t border-border/40 py-12">
+          <h2 className="flex items-center gap-2 text-2xl font-bold">
+            <UsersRound className="size-6 text-primary" />
+            Для кого
+          </h2>
+          <p className="mt-4 max-w-3xl leading-8 text-muted-foreground">
+            18–28 в крупном городе: студенты и молодые специалисты, приезжие без своей тусовки,
+            интроверты и социально тревожные, которым некомфортно идить одним на интересное
+            событие.
+          </p>
+        </section>
+
+        <section className="border-t border-border/40 py-12">
+          <h2 className="flex items-center gap-2 text-2xl font-bold">
+            <Building2 className="size-6 text-primary" />
+            Партнёрам
+          </h2>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {b2bTeaser.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/partners"
+            className="mt-4 inline-flex items-center gap-1 text-primary hover:underline"
+          >
+            Подробнее для площадок
+            <ArrowRight className="size-4" />
+          </Link>
+        </section>
+
+        <section className="border-t border-border/40 py-12">
+          <h2 className="text-2xl font-bold">Мы / не мы</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {competitors.map((col) => (
+              <div
+                key={col.title}
+                className={
+                  col.highlight
+                    ? "dvig-panel border-primary/30 p-5"
+                    : "dvig-panel-muted p-5"
+                }
+              >
+                <h3 className="font-semibold">{col.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{col.text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Позиционирование: дело → люди → офлайн. Цифра ведёт в реальный мир, а не в бесконечный
+            скролл.
+          </p>
+        </section>
+      </div>
+
+      <SiteFooter />
     </main>
   );
 }

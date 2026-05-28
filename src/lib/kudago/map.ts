@@ -119,6 +119,20 @@ function excerpt(text: string, max = 160): string {
   return `${normalized.slice(0, max - 1)}…`;
 }
 
+function mockSocialFromKudagoId(id: number) {
+  const seed = id % 97;
+  const groupCapacity = 6 + (seed % 7);
+  const participants = 1 + (seed % 4);
+  const spotsLeft = Math.max(0, groupCapacity - participants);
+
+  return {
+    groupCapacity,
+    participants,
+    spotsLeft,
+    moderator: "Организатор группы (демо)",
+  };
+}
+
 function buildAiSummary(description: string): DvigEvent["aiSummary"] {
   const text = excerpt(description, 220);
   return {
@@ -178,6 +192,8 @@ export function mapKudagoToDvigEvent(raw: KudagoEventRaw): DvigEvent | null {
     place: placeTitle,
   }));
 
+  const social = mockSocialFromKudagoId(raw.id);
+
   return {
     id: `kudago-${raw.id}`,
     kudagoId: raw.id,
@@ -193,14 +209,15 @@ export function mapKudagoToDvigEvent(raw: KudagoEventRaw): DvigEvent | null {
     price,
     short,
     description,
-    spotsLeft: 0,
-    participants: 0,
-    moderator: "—",
+    spotsLeft: social.spotsLeft,
+    participants: social.participants,
+    groupCapacity: social.groupCapacity,
+    moderator: social.moderator,
     rating: favorites > 0 ? String(Math.min(5, 3.5 + favorites / 200)) : "—",
     source: "KudaGo",
     url: raw.site_url || `https://kudago.com/spb/event/${raw.id}/`,
     ageRestriction,
-    updatedAt: "KudaGo",
+    updatedAt: new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" }),
     popularityScore: Math.min(100, favorites),
     commentsCount: comments,
     tags: raw.categories?.length ? raw.categories : [kudagoCategorySlug],

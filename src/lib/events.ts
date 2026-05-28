@@ -31,6 +31,7 @@ export type DvigEvent = {
   description: string;
   spotsLeft: number;
   participants: number;
+  groupCapacity: number;
   moderator: string;
   rating: string;
   source: string;
