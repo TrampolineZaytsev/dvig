@@ -47,11 +47,11 @@ export default function Home() {
     <main className="dvig-page min-h-screen text-foreground">
       <section className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4">
-          <Link href="/" className="group flex items-center gap-3">
+          <Link href="/" className="group flex items-center gap-0.5">
             <img
               src="/dvig-logo.png"
               alt="ДВИГ"
-              className="dvig-logo size-11 transition group-hover:shadow-primary/40"
+              className="dvig-logo size-14 transition group-hover:shadow-primary/40"
             />
             <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
           </Link>

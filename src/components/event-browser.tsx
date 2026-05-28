@@ -261,13 +261,13 @@ export function EventBrowser() {
       <header className="dvig-header">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-0.5">
               <img
                 src="/dvig-logo.png"
                 alt="ДВИГ"
-                className="dvig-logo size-9"
+                className="dvig-logo size-14"
               />
-              <span className="font-semibold">ДВИГ</span>
+              <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
             </Link>
             <Badge variant="outline" className="rounded-md lg:hidden">
               webapp
