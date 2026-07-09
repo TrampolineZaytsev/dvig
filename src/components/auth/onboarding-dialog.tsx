@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import type { ApiUser } from "@/lib/api-client";
-import { updateProfile } from "@/lib/api-client";
+import type { ApiUser } from "@/lib/client/api-client";
+import { updateProfile } from "@/lib/client/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

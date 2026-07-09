@@ -1,7 +1,7 @@
-import { jsonOk, handleApiError } from "@/lib/api";
-import { requireSessionUser } from "@/lib/auth";
-import { buildGroupSummary } from "@/lib/groups";
-import { prisma } from "@/lib/db";
+import { jsonOk, handleApiError } from "@/lib/server/api";
+import { requireSessionUser } from "@/lib/server/auth";
+import { buildGroupSummary } from "@/lib/server/groups";
+import { prisma } from "@/lib/server/db";
 
 export async function GET() {
   try {

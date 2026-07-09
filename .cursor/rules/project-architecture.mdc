@@ -1,0 +1,47 @@
+---
+description: Архитектура и организация кода ДВИГ (Next.js 16 App Router)
+alwaysApply: true
+---
+
+# ДВИГ — структура проекта
+
+Стек: **Next.js 16 App Router**, React 19, Prisma, Tailwind 4, shadcn/base-ui.
+
+## Принципы
+
+1. **`src/app/`** — только маршруты: `page.tsx`, `layout.tsx`, `api/**/route.ts`. Страницы тонкие, логика — в `components/` и `lib/`.
+2. **`src/components/`** — UI по фичам, не по типу файла:
+   - `ui/` — примитивы дизайн-системы (shadcn)
+   - `layout/` — шапка, подвал
+   - `auth/` — вход, онбординг
+   - `events/` — фильтры афиши, карточки KudaGo
+   - `app/` — главное приложение `/app` (EventBrowser и подкомпоненты)
+   - `marketing/` — лендинг-формы
+3. **`src/lib/`** — бизнес-логика без JSX:
+   - `server/` — только сервер (Prisma, auth, API helpers) — импортировать из route handlers
+   - `client/` — браузерный API-клиент (`api-client.ts`)
+   - `events/` — типы и утилиты афиши
+   - `kudago/` — интеграция KudaGo
+   - `config.ts`, `utils.ts` — общие утилиты
+4. **`src/hooks/`** — клиентские хуки (`use-pilot-data.ts`).
+
+## Именование
+
+- Файлы: `kebab-case.tsx` / `kebab-case.ts`
+- Компоненты: `PascalCase`
+- Один основной экспорт на файл фичи; мелкие хелперы — `shared/` внутри фичи
+
+## API routes
+
+- Валидация → `lib/server/*` → `jsonOk` / `jsonError` из `lib/server/api`
+- Auth: `getSessionUser`, `requireSessionUser`, `requireModerator` из `lib/server/auth`
+
+## Запреты при рефакторинге
+
+- Не менять поведение и контракты API без явного запроса
+- Не смешивать server-only код в client components (`"use client"` не импортирует `lib/server/*`)
+- Перед Next.js API — читать `node_modules/next/dist/docs/` (версия 16, breaking changes)
+
+## Документация
+
+Продукт и статус: `DESCRIBE.md`. Быстрый старт: `README.md`.

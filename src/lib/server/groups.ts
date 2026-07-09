@@ -1,5 +1,5 @@
 import type { Group, Application, Profile } from "@prisma/client";
-import type { ApplicationStatus } from "@/lib/auth";
+import type { ApplicationStatus } from "@/lib/server/auth";
 
 export type GroupSummary = {
   id: string;

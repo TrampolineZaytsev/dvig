@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ApiUser } from "@/lib/api-client";
-import type { GroupSummary } from "@/lib/groups";
+import type { ApiUser } from "@/lib/client/api-client";
+import type { GroupSummary } from "@/lib/server/groups";
 import type { DvigEvent } from "@/lib/events";
 
 type GroupSocialPanelProps = {

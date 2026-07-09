@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 import { appConfig } from "@/lib/config";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/server/db";
 import type { User } from "@prisma/client";
 
 export type UserRole = "USER" | "MODERATOR" | "ADMIN";

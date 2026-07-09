@@ -1,4 +1,4 @@
-import type { CustomDateRange } from "@/lib/event-dates";
+import type { CustomDateRange } from "@/lib/events/dates";
 import type { DvigEvent, EventCategory } from "@/lib/events";
 
 type DatePreset = "Сегодня" | "Завтра" | "Выходные";

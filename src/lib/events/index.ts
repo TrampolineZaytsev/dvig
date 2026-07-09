@@ -50,7 +50,7 @@ export type DvigEvent = {
   applicationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
   meetingPoint?: string | null;
   telegramLink?: string | null;
-  availableGroups?: import("@/lib/groups").GroupSummary[];
+  availableGroups?: import("@/lib/server/groups").GroupSummary[];
 };
 
 export const categoryFilters = ["Кино", "Настолки", "Культура", "Спорт"] as const;

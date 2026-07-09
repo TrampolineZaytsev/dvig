@@ -1,6 +1,6 @@
-import { jsonOk, handleApiError } from "@/lib/api";
-import { requireModerator } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { jsonOk, handleApiError } from "@/lib/server/api";
+import { requireModerator } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 
 export async function GET() {
   try {

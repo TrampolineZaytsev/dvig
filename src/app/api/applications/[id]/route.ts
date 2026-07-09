@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser } from "@/lib/auth";
-import { notifyApplicationApproved } from "@/lib/applications";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser } from "@/lib/server/auth";
+import { notifyApplicationApproved } from "@/lib/server/applications";
+import { prisma } from "@/lib/server/db";
 
 async function canModerateApplication(userId: string, role: string, groupModeratorId: string) {
   if (role === "MODERATOR" || role === "ADMIN") {

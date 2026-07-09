@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { requireSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { requireSessionUser } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 
 const checkInSchema = z.object({
   groupId: z.string().min(1),

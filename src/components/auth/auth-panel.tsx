@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { ApiUser } from "@/lib/api-client";
+import type { ApiUser } from "@/lib/client/api-client";
 import {
   fetchCurrentUser,
   loginUser,
   logoutUser,
   registerUser,
   trackEvent,
-} from "@/lib/api-client";
+} from "@/lib/client/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

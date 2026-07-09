@@ -1,5 +1,5 @@
-import { jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser, getUserWithProfile, toPublicUser } from "@/lib/auth";
+import { jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser, getUserWithProfile, toPublicUser } from "@/lib/server/auth";
 
 export async function GET() {
   try {

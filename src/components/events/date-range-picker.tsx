@@ -21,7 +21,7 @@ import {
   parseISODate,
   startOfDay,
   toISODate,
-} from "@/lib/event-dates";
+} from "@/lib/events/dates";
 import { cn } from "@/lib/utils";
 
 type PickerMode = "single" | "range";

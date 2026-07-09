@@ -1,5 +1,5 @@
-import { jsonOk, handleApiError } from "@/lib/api";
-import { clearSessionCookie } from "@/lib/auth";
+import { jsonOk, handleApiError } from "@/lib/server/api";
+import { clearSessionCookie } from "@/lib/server/auth";
 
 export async function POST() {
   try {

@@ -316,27 +316,40 @@
 
 ```
 DVIG/
-├── DESCRIBE.md              ← этот файл
-├── PROJECT.md               ← продуктовый манифест (частично устарел в tech-разделе)
-├── PILOT_REGULATIONS.md     ← регламент пилота B2C
-├── first_plan.md            ← выполненный план сайта (статусы completed)
-├── README.md                ← быстрый старт разработчика
+├── .cursor/rules/
+│   └── project-architecture.mdc   ← правила организации кода для ИИ
+├── DESCRIBE.md                    ← этот файл
+├── PROJECT.md                     ← продуктовый манифест (частично устарел в tech-разделе)
+├── README.md                      ← быстрый старт разработчика
 ├── prisma/
-│   ├── schema.prisma        ← модель данных
-│   ├── seed.ts              ← модератор + тестовые группы
-│   └── dev.db               ← SQLite (локально, в .gitignore)
-├── public/                  ← логотип, SVG категорий
+│   ├── schema.prisma              ← модель данных
+│   ├── seed.ts                    ← модератор + тестовые группы
+│   └── dev.db                     ← SQLite (локально, в .gitignore)
+├── public/                        ← логотип, SVG категорий
 ├── src/
-│   ├── app/                 ← Next.js App Router
-│   │   ├── page.tsx         ← лендинг
-│   │   ├── app/page.tsx     ← приложение (EventBrowser)
-│   │   ├── admin/page.tsx   ← панель модератора
+│   ├── app/                       ← Next.js App Router (только маршруты)
+│   │   ├── page.tsx               ← лендинг
+│   │   ├── app/page.tsx           ← приложение (EventBrowser)
+│   │   ├── admin/page.tsx         ← панель модератора
 │   │   ├── safety/ partners/ privacy/ terms/
-│   │   └── api/             ← REST API
-│   ├── components/          ← UI-компоненты
-│   ├── hooks/use-pilot-data.ts
-│   └── lib/                 ← бизнес-логика, клиенты API
-└── scripts/                 ← вспомогательные скрипты (презентации, не core)
+│   │   └── api/                   ← REST API route handlers
+│   ├── components/
+│   │   ├── ui/                    ← shadcn / base-ui примитивы
+│   │   ├── layout/                ← SiteHeader, SiteFooter
+│   │   ├── auth/                  ← AuthPanel, OnboardingDialog
+│   │   ├── events/                ← фильтры афиши, GroupSocialPanel
+│   │   ├── app/                   ← EventBrowser и подкомпоненты /app
+│   │   └── marketing/             ← WaitlistForm
+│   ├── hooks/
+│   │   └── use-pilot-data.ts
+│   └── lib/
+│       ├── server/                ← auth, db, groups, API helpers (только сервер)
+│       ├── client/                ← api-client.ts (браузер)
+│       ├── events/                ← типы и утилиты афиши
+│       ├── kudago/                ← KudaGo API
+│       ├── config.ts
+│       └── utils.ts
+└── scripts/                       ← вспомогательные скрипты (не core)
 ```
 
 **Не в репозитории:** `spb-events` (Python CLI), pitch-скрипты и pptx в корне — вспомогательные материалы команды.
@@ -593,15 +606,17 @@ npm run dev
 | Файл | Что внутри |
 |------|------------|
 | `src/app/page.tsx` | Лендинг |
-| `src/components/event-browser.tsx` | Главный UI приложения (~1800 строк) |
+| `src/components/app/event-browser.tsx` | Корневой UI `/app` |
+| `src/components/app/` | Поиск, карточки, профиль, safety (разбито из монолита) |
 | `src/hooks/use-pilot-data.ts` | Auth, группы, заявки на клиенте |
 | `src/lib/kudago/map.ts` | KudaGo raw → DvigEvent |
-| `src/lib/groups.ts` | Слияние событий с группами |
-| `src/lib/auth.ts` | Сессии JWT |
-| `src/lib/api-client.ts` | Клиент всех API |
+| `src/lib/server/groups.ts` | Слияние событий с группами |
+| `src/lib/server/auth.ts` | Сессии JWT |
+| `src/lib/client/api-client.ts` | Клиент всех API |
 | `src/app/api/events/route.ts` | Прокси KudaGo |
 | `src/app/admin/page.tsx` | Панель модератора |
 | `prisma/schema.prisma` | Схема БД |
+| `.cursor/rules/project-architecture.mdc` | Правила структуры для разработки |
 
 ---
 

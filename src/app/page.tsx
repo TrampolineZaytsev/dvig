@@ -9,9 +9,9 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-import { WaitlistForm } from "@/components/waitlist-form";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteHeader } from "@/components/layout/site-header";
+import { WaitlistForm } from "@/components/marketing/waitlist-form";
 import { Badge } from "@/components/ui/badge";
 
 const categoryCards = [

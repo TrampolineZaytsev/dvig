@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { ApiUser } from "@/lib/api-client";
+import type { ApiUser } from "@/lib/client/api-client";
 import {
   cancelApplication,
   createApplication,
@@ -13,10 +13,10 @@ import {
   fetchMyGroups,
   moderateApplication,
   trackEvent,
-} from "@/lib/api-client";
-import { eventToGroupDateTime } from "@/lib/event-group";
-import type { ApplicationSummary, GroupSummary } from "@/lib/groups";
-import { mergeEventWithGroups } from "@/lib/groups";
+} from "@/lib/client/api-client";
+import { eventToGroupDateTime } from "@/lib/events/group";
+import type { ApplicationSummary, GroupSummary } from "@/lib/server/groups";
+import { mergeEventWithGroups } from "@/lib/server/groups";
 import type { DvigEvent } from "@/lib/events";
 
 export type MyGroupWithPending = GroupSummary & {

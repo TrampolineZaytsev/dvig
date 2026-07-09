@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser, getUserWithProfile, requireSessionUser } from "@/lib/auth";
-import { buildGroupSummary } from "@/lib/groups";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser, getUserWithProfile, requireSessionUser } from "@/lib/server/auth";
+import { buildGroupSummary } from "@/lib/server/groups";
+import { prisma } from "@/lib/server/db";
 
 const createGroupSchema = z.object({
   kudagoEventId: z.number().int().positive(),

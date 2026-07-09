@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { prisma } from "@/lib/server/db";
 
 const waitlistSchema = z
   .object({

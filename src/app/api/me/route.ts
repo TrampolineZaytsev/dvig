@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser, getUserWithProfile, serializeInterests, toPublicUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser, getUserWithProfile, serializeInterests, toPublicUser } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 
 const profileSchema = z.object({
   displayName: z.string().min(2).max(60).optional(),

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { joinWaitlist } from "@/lib/api-client";
+import { joinWaitlist } from "@/lib/client/api-client";
 
 export function WaitlistForm() {
   const [email, setEmail] = useState("");

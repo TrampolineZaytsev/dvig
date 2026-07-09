@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 
 const analyticsSchema = z.object({
   name: z.string().min(1).max(80),

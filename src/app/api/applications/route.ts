@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser, requireSessionUser } from "@/lib/auth";
-import { ApplicationSummary } from "@/lib/groups";
-import { sendTelegramNotification } from "@/lib/notifications";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { getSessionUser, requireSessionUser } from "@/lib/server/auth";
+import { ApplicationSummary } from "@/lib/server/groups";
+import { sendTelegramNotification } from "@/lib/server/notifications";
+import { prisma } from "@/lib/server/db";
 
 const createApplicationSchema = z.object({
   groupId: z.string().min(1),

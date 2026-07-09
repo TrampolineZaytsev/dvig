@@ -2,9 +2,9 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { createSessionToken, setSessionCookie, toPublicUser, type UserRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { createSessionToken, setSessionCookie, toPublicUser, type UserRole } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 
 const loginSchema = z.object({
   email: z.string().email(),

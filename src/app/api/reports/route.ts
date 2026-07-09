@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { requireSessionUser } from "@/lib/auth";
-import { formatPanicMessage, formatReportMessage, sendTelegramNotification } from "@/lib/notifications";
-import { prisma } from "@/lib/db";
+import { jsonError, jsonOk, handleApiError } from "@/lib/server/api";
+import { requireSessionUser } from "@/lib/server/auth";
+import { formatPanicMessage, formatReportMessage, sendTelegramNotification } from "@/lib/server/notifications";
+import { prisma } from "@/lib/server/db";
 
 const reportSchema = z.object({
   type: z.enum(["COMPLAINT", "PANIC"]),

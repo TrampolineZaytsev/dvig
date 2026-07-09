@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-import { AuthPanel, useAuth } from "@/components/auth-panel";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { AuthPanel, useAuth } from "@/components/auth/auth-panel";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   createPilotGroup,
   fetchAdminStats,
   moderateApplication,
-} from "@/lib/api-client";
+} from "@/lib/client/api-client";
 
 export default function AdminPage() {
   const { user, setUser, loading } = useAuth();

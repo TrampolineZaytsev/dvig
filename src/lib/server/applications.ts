@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { formatApplicationApprovedMessage, sendTelegramNotification } from "@/lib/notifications";
+import { prisma } from "@/lib/server/db";
+import { formatApplicationApprovedMessage, sendTelegramNotification } from "@/lib/server/notifications";
 
 export async function notifyApplicationApproved(applicationId: string) {
   const application = await prisma.application.findUnique({

@@ -1,6 +1,6 @@
-import type { PublicUser } from "@/lib/auth";
-import type { ApplicationSummary, GroupSummary } from "@/lib/groups";
-import type { ApplicationStatus } from "@/lib/auth";
+import type { PublicUser } from "@/lib/server/auth";
+import type { ApplicationSummary, GroupSummary } from "@/lib/server/groups";
+import type { ApplicationStatus } from "@/lib/server/auth";
 
 export type ApiUser = PublicUser;
 
