@@ -13,9 +13,9 @@ const navLinks = [
 export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
   return (
     <header className="dvig-header border-b border-border/40">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="group flex items-center gap-0.5">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="group flex min-w-0 items-center gap-0.5">
             <img
               src="/dvig-logo.png"
               alt="ДВИГ"
@@ -23,10 +23,15 @@ export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
             />
             <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
           </Link>
-          <CityPicker />
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <CityPicker />
+            <HeaderAuthButton />
+            {trailing}
+          </div>
         </div>
 
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <nav className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm lg:mt-4">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -36,8 +41,6 @@ export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
               {link.label}
             </Link>
           ))}
-          {trailing}
-          <HeaderAuthButton />
         </nav>
       </div>
     </header>
