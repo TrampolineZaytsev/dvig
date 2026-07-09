@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ДВИГ Web — пилот B2C
 
-## Getting Started
-
-First, run the development server:
+## Быстрый старт
 
 ```bash
+cp .env.example .env
+npm install
+npx prisma db push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Приложение: http://localhost:3000/app
+- Админка модератора: http://localhost:3000/admin
+- Модератор по умолчанию: `moderator@dvig.app` / `moderator123`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Пилот
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Создайте группы в `/admin` с реальным `kudagoEventId` из URL события KudaGo.
+2. Пользователи регистрируются, проходят онбординг, подают заявку.
+3. Модератор одобряет заявки; участник видит точку встречи и ссылку на Telegram.
+4. Check-in, жалобы и оценка после встречи — в настройках `/app`.
 
-## Learn More
+Регламент: [PILOT_REGULATIONS.md](./PILOT_REGULATIONS.md)
 
-To learn more about Next.js, take a look at the following resources:
+## Telegram-уведомления (опционально)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_MODERATOR_CHAT_ID=...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## База данных
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+По умолчанию SQLite (`prisma/dev.db`). Для PostgreSQL задайте `DATABASE_URL` в `.env`.

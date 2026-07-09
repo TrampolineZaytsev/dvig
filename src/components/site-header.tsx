@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 const navLinks = [
-  { href: "/app", label: "Попробовать демо" },
+  { href: "/app", label: "Приложение" },
   { href: "/safety", label: "Безопасность и данные" },
   { href: "/partners", label: "Партнёрам" },
 ] as const;
@@ -22,7 +22,7 @@ export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
             />
             <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
           </Link>
-          <Badge className="dvig-badge shrink-0">Демо · СПб</Badge>
+          <Badge className="dvig-badge shrink-0">Пилот · СПб</Badge>
         </div>
 
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 export const metadata: Metadata = {
   title: "Безопасность и данные — ДВИГ",
   description:
-    "Принципы безопасности офлайн-встреч, цифровой след и roadmap ДВИГ. Демо-пилот Санкт-Петербург.",
+    "Принципы безопасности офлайн-встреч, цифровой след и пилот ДВИГ. Санкт-Петербург.",
 };
 
 export default function SafetyPage() {
@@ -23,7 +23,7 @@ export default function SafetyPage() {
         </h1>
         <p className="mt-4 text-lg leading-8 text-muted-foreground">
           Безопасность в ДВИГ — это забота и прозрачность, а не обещание, что «алгоритм
-          защитит». Ниже — что планируем в продукте и что уже можно посмотреть в демо.
+          защитит». Ниже — принципы пилота B2C и ссылки на политику данных.
         </p>
 
         <section className="mt-10 space-y-4">

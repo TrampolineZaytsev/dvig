@@ -57,8 +57,19 @@ import {
 } from "@/components/ui/sheet";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { KudagoCategoryPicker } from "@/components/kudago-category-picker";
+import { OnboardingDialog } from "@/components/onboarding-dialog";
+import { AuthPanel } from "@/components/auth-panel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { usePilotData } from "@/hooks/use-pilot-data";
+import type { ApiUser } from "@/lib/api-client";
+import {
+  submitCheckIn,
+  submitFeedback,
+  submitReport,
+  trackEvent,
+  updateProfile,
+} from "@/lib/api-client";
 import {
   buildTelegramDigest,
   categoryFilters,
@@ -75,6 +86,7 @@ import {
   formatCustomDateRangeLabel,
 } from "@/lib/event-dates";
 import { fetchDvigEvents } from "@/lib/fetch-events";
+import type { ApplicationSummary } from "@/lib/groups";
 
 type AppView = "search" | "profile" | "collection" | "friends" | "settings";
 type DatePreset = (typeof dateFilters)[number];
@@ -125,6 +137,17 @@ function mockParticipantInitials(eventId: string): string[] {
 }
 
 export function EventBrowser() {
+  const {
+    user,
+    setUser,
+    authLoading,
+    applications,
+    mergeEvents,
+    submitApplication,
+    isJoined,
+    refreshSocial,
+  } = usePilotData();
+
   const [view, setView] = useState<AppView>("search");
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
   const [extraCategorySlugs, setExtraCategorySlugs] = useState<string[]>([]);
@@ -139,10 +162,13 @@ export function EventBrowser() {
   const [selected, setSelected] = useState<DvigEvent | null>(null);
   const [saved, setSaved] = useState<string[]>([]);
   const [savedEventsCache, setSavedEventsCache] = useState<Record<string, DvigEvent>>({});
-  const [joined, setJoined] = useState<string[]>([]);
   const [copyState, setCopyState] = useState("Скопировать для Telegram");
   const [onlySpotsLeft, setOnlySpotsLeft] = useState(false);
   const [joinNotice, setJoinNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    void trackEvent("page_view", { page: "app" });
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -177,7 +203,7 @@ export function EventBrowser() {
           setFetchError(result.error);
           setEvents([]);
         } else {
-          setEvents(result.events);
+          setEvents(mergeEvents(result.events));
           setFetchError(null);
         }
         setLoading(false);
@@ -188,10 +214,12 @@ export function EventBrowser() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [selectedCategories, extraCategorySlugs, selectedDates, customDateRange, query]);
+  }, [selectedCategories, extraCategorySlugs, selectedDates, customDateRange, query, mergeEvents]);
+
+  const enrichedEvents = useMemo(() => mergeEvents(events), [events, mergeEvents]);
 
   const filteredEvents = useMemo(() => {
-    const matched = events.filter((event) => {
+    const matched = enrichedEvents.filter((event) => {
       const categoryMatch =
         (selectedCategories.length === 0 && extraCategorySlugs.length === 0) ||
         (selectedCategories.length > 0 && selectedCategories.includes(event.category)) ||
@@ -219,7 +247,7 @@ export function EventBrowser() {
     return matched;
   }, [
     customDateRange,
-    events,
+    enrichedEvents,
     extraCategorySlugs,
     selectedCategories,
     selectedDates,
@@ -251,15 +279,25 @@ export function EventBrowser() {
     });
   };
 
-  const toggleJoined = (eventId: string) => {
-    setJoined((current) => {
-      if (current.includes(eventId)) {
-        return current.filter((id) => id !== eventId);
+  const toggleJoined = async (event: DvigEvent) => {
+    try {
+      if (isJoined(event)) {
+        setJoinNotice("Заявка уже отправлена. Статус — в профиле.");
+        window.setTimeout(() => setJoinNotice(null), 4500);
+        return;
       }
-      setJoinNotice("В демо заявка сохраняется только у вас в браузере.");
-      window.setTimeout(() => setJoinNotice(null), 4500);
-      return [...current, eventId];
-    });
+      await submitApplication(event);
+      setJoinNotice("Заявка отправлена. Модератор рассмотрит её в течение 24 часов.");
+      window.setTimeout(() => setJoinNotice(null), 5000);
+      void refreshSocial();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Не удалось отправить заявку";
+      setJoinNotice(message);
+      window.setTimeout(() => setJoinNotice(null), 5000);
+      if (message.includes("Войдите")) {
+        setView("profile");
+      }
+    }
   };
 
   const downloadFile = (items: DvigEvent[], format: "json" | "csv", filename = "dvig-events") => {
@@ -292,8 +330,10 @@ export function EventBrowser() {
         className="sticky top-0 z-30 border-b border-primary/20 bg-[#1a1028]/95 px-4 py-2.5 text-center text-sm backdrop-blur-md sm:px-6"
         role="status"
       >
-        Демонстрационный интерфейс. Заявки, группы и safety — локально в браузере, без сервера.
+        Пилот B2C · СПб. Афиша KudaGo + реальные группы и заявки. Безопасность и модерация — по регламенту пилота.
       </div>
+
+      {user && <OnboardingDialog user={user} onComplete={setUser} />}
 
       {joinNotice && (
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
@@ -341,7 +381,7 @@ export function EventBrowser() {
               loading={loading}
               error={fetchError}
               saved={saved}
-              joined={joined}
+              isJoined={isJoined}
               onOpen={setSelected}
               onSave={toggleSaved}
               onJoin={toggleJoined}
@@ -358,7 +398,7 @@ export function EventBrowser() {
                     setFetchError(result.error);
                     setEvents([]);
                   } else {
-                    setEvents(result.events);
+                    setEvents(mergeEvents(result.events));
                     setFetchError(null);
                   }
                   setLoading(false);
@@ -368,7 +408,13 @@ export function EventBrowser() {
           )}
 
           {view === "profile" && (
-            <ProfileView savedCount={saved.length} joinedCount={joined.length} />
+            <ProfileView
+              user={user}
+              authLoading={authLoading}
+              savedCount={saved.length}
+              applications={applications}
+              onUserChange={setUser}
+            />
           )}
 
           {view === "collection" && (
@@ -387,17 +433,19 @@ export function EventBrowser() {
 
           {view === "friends" && <FriendsPanel />}
 
-          {view === "settings" && <SettingsPanel joinedCount={joined.length} />}
+          {view === "settings" && (
+            <SettingsPanel applications={applications} user={user} onUserChange={setUser} />
+          )}
         </div>
       </section>
 
       <EventSheet
         event={selected}
         isSaved={selected ? saved.includes(selected.id) : false}
-        isJoined={selected ? joined.includes(selected.id) : false}
+        isJoined={selected ? isJoined(selected) : false}
         onClose={() => setSelected(null)}
         onSave={(event) => toggleSaved(event)}
-        onJoin={(eventId) => toggleJoined(eventId)}
+        onJoin={(event) => void toggleJoined(event)}
         onExportJson={(event) =>
           downloadFile([event], "json", `dvig-${event.id}`)
         }
@@ -853,43 +901,96 @@ function MenuNavItem({
 }
 
 function ProfileView({
+  user,
+  authLoading,
   savedCount,
-  joinedCount,
+  applications,
+  onUserChange,
 }: {
+  user: ApiUser | null;
+  authLoading: boolean;
   savedCount: number;
-  joinedCount: number;
+  applications: ApplicationSummary[];
+  onUserChange: (user: ApiUser | null) => void;
 }) {
+  const activeApplications = applications.filter(
+    (app) => app.status === "PENDING" || app.status === "APPROVED"
+  );
+
+  if (authLoading) {
+    return <div className="dvig-panel mt-5 p-8 text-center text-muted-foreground">Загрузка профиля…</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="dvig-panel p-5">
+          <h2 className="text-xl font-semibold">Вход для пилота</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Чтобы подать заявку в группу, создайте аккаунт. Формат пилота — группы 5–7 в публичном месте.
+          </p>
+        </div>
+        <AuthPanel onUserChange={onUserChange} />
+      </div>
+    );
+  }
+
+  const initials = (user.profile?.displayName ?? user.email).slice(0, 1).toUpperCase();
+
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
       <div className="dvig-panel p-5">
         <div className="flex items-center gap-4">
           <Avatar className="size-16">
-            <AvatarFallback className="text-lg">А</AvatarFallback>
+            <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="text-2xl font-semibold">Алина</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Санкт-Петербург · профиль проверяется</p>
+            <h2 className="text-2xl font-semibold">{user.profile?.displayName ?? "Участник"}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {user.profile?.city ?? "Санкт-Петербург"} · {user.email}
+            </p>
           </div>
         </div>
         <p className="mt-5 text-sm leading-6 text-muted-foreground">
-          Здесь видно, как вы выглядите для других участников: интересы, верификация и
-          статус заявок. На первом этапе — встречи в группе от 5 человек, не 1-на-1 без
-          контура безопасности. Управление приватностью — в настройках.
+          Профиль видят модератор при рассмотрении заявки и одобренные участники группы.
+          На первом этапе — встречи в группе от 5 человек, не 1-на-1.
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
-          {["кино", "настолки", "культура", "спокойные встречи"].map((tag) => (
+          {(user.profile?.interests ?? []).map((tag) => (
             <Badge key={tag} variant="outline" className="rounded-md">
               {tag}
             </Badge>
           ))}
         </div>
+        {activeApplications.length > 0 && (
+          <div className="mt-6 space-y-2">
+            <h3 className="font-semibold">Мои заявки</h3>
+            {activeApplications.map((app) => (
+              <div key={app.id} className="dvig-panel-muted rounded-md p-3 text-sm">
+                <p className="font-medium">{app.eventTitle}</p>
+                <p className="text-muted-foreground">Статус: {app.status}</p>
+                {app.status === "APPROVED" && app.meetingPoint && (
+                  <p className="mt-1">Точка встречи: {app.meetingPoint}</p>
+                )}
+                {app.status === "APPROVED" && app.telegramLink && (
+                  <a href={app.telegramLink} className="mt-1 inline-block text-primary hover:underline">
+                    Чат группы в Telegram
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {(user.role === "MODERATOR" || user.role === "ADMIN") && (
+          <Link href="/admin" className="mt-4 inline-flex text-sm text-primary hover:underline">
+            Панель модератора →
+          </Link>
+        )}
       </div>
       <div className="space-y-3">
-        <Metric label="Заявки" value={joinedCount} />
+        <Metric label="Заявки" value={activeApplications.length} />
         <Metric label="Сохранено" value={savedCount} />
-        <div className="dvig-panel-muted p-4 text-sm leading-6 text-muted-foreground">
-          Верификация откроет встречи один на один и отметку «проверенный профиль».
-        </div>
+        <AuthPanel onUserChange={onUserChange} compact />
       </div>
     </div>
   );
@@ -931,7 +1032,7 @@ function EventGrid({
   loading,
   error,
   saved,
-  joined,
+  isJoined,
   onOpen,
   onSave,
   onJoin,
@@ -941,10 +1042,10 @@ function EventGrid({
   loading: boolean;
   error: string | null;
   saved: string[];
-  joined: string[];
+  isJoined: (event: DvigEvent) => boolean;
   onOpen: (event: DvigEvent) => void;
   onSave: (event: DvigEvent) => void;
-  onJoin: (eventId: string) => void;
+  onJoin: (event: DvigEvent) => void;
   onRetry: () => void;
 }) {
   if (loading && items.length === 0) {
@@ -986,10 +1087,10 @@ function EventGrid({
           key={event.id}
           event={event}
           isSaved={saved.includes(event.id)}
-          isJoined={joined.includes(event.id)}
+          isJoined={isJoined(event)}
           onOpen={() => onOpen(event)}
           onSave={() => onSave(event)}
-          onJoin={() => onJoin(event.id)}
+          onJoin={() => onJoin(event)}
         />
       ))}
     </div>
@@ -1011,7 +1112,7 @@ function EventSheet({
   isJoined: boolean;
   onClose: () => void;
   onSave: (event: DvigEvent) => void;
-  onJoin: (eventId: string) => void;
+  onJoin: (event: DvigEvent) => void;
   onExportJson: (event: DvigEvent) => void;
   onExportCsv: (event: DvigEvent) => void;
 }) {
@@ -1156,15 +1257,17 @@ function EventSheet({
             <SheetFooter className="flex-col gap-2 sm:flex-col">
               <Button
                 className="dvig-btn-primary w-full rounded-lg"
-                onClick={() => onJoin(event.id)}
+                onClick={() => onJoin(event)}
               >
                 {isJoined ? (
                   <>
                     <Check className="size-4" />
-                    Заявка отправлена
+                    {event.applicationStatus === "APPROVED" ? "Вы в группе" : "Заявка отправлена"}
                   </>
-                ) : (
+                ) : event.hasRealGroup ? (
                   "Подать заявку"
+                ) : (
+                  "Группа скоро откроется"
                 )}
               </Button>
               <Button
@@ -1273,14 +1376,16 @@ function EventCard({
           </span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button className="dvig-btn-primary rounded-lg" onClick={onJoin}>
+          <Button className="dvig-btn-primary rounded-lg" onClick={onJoin} disabled={!event.hasRealGroup}>
             {isJoined ? (
               <>
                 <Check className="size-4" />
-                Заявка отправлена
+                {event.applicationStatus === "APPROVED" ? "Вы в группе" : "Заявка отправлена"}
               </>
-            ) : (
+            ) : event.hasRealGroup ? (
               "Подать заявку"
+            ) : (
+              "Группа скоро откроется"
             )}
           </Button>
           <Button variant="outline" className="rounded-md" onClick={onOpen}>
@@ -1403,18 +1508,28 @@ function CollectionPanel({
   );
 }
 
-function SettingsPanel({ joinedCount }: { joinedCount: number }) {
+function SettingsPanel({
+  applications,
+  user,
+  onUserChange,
+}: {
+  applications: ApplicationSummary[];
+  user: ApiUser | null;
+  onUserChange: (user: ApiUser | null) => void;
+}) {
+  const activeCount = applications.filter((a) => a.status === "PENDING" || a.status === "APPROVED").length;
+
   return (
     <div className="mt-5 space-y-8">
       <section>
         <h2 className="mb-4 text-lg font-semibold">Приложение</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {[
-            ["Город", "Санкт-Петербург", "В следующем этапе здесь будет выбор города и источник афиши."],
-            ["Краткое описание", "Локальный текст", "Усечение описания KudaGo и шаблонные фразы — не LLM. Серверный ИИ — только с маркировкой и human-in-the-loop."],
-            ["Telegram", "Копирование", "Реальная отправка будет server-side, чтобы не раскрывать токен бота в браузере."],
-            ["Данные / KudaGo", "Афиша API", "События из KudaGo (СПб), кэш на сервере ~5 минут. Факты — у организатора."],
-            ["Социальный слой", "Демо", "Группы, заявки и участники — детерминированный мок в браузере, без базы данных."],
+            ["Город", "Санкт-Петербург", "Пилот ограничен СПб и афишей KudaGo."],
+            ["Краткое описание", "Локальный текст", "Усечение описания KudaGo — не LLM."],
+            ["Telegram", "Уведомления", "Одобрение заявки и эскалация safety — через бота модератора."],
+            ["Данные / KudaGo", "Афиша API", "События из KudaGo, кэш ~5 минут."],
+            ["Социальный слой", "Пилот", "Реальные группы, заявки и модерация в базе данных."],
           ].map(([title, value, text]) => (
             <div key={title} className="dvig-panel p-4">
               <span className="text-sm text-muted-foreground/80">{title}</span>
@@ -1426,26 +1541,86 @@ function SettingsPanel({ joinedCount }: { joinedCount: number }) {
       </section>
       <section>
         <h2 className="mb-4 text-lg font-semibold">Безопасность</h2>
-        <SafetyPanel joinedCount={joinedCount} embedded />
+        <SafetyPanel applications={applications} user={user} onUserChange={onUserChange} embedded />
       </section>
       <section>
         <h2 className="mb-4 text-lg font-semibold">Профиль и цифровой след</h2>
-        <ProfilePanel embedded />
+        <ProfilePanel user={user} activeApplications={activeCount} embedded />
       </section>
     </div>
   );
 }
 
 function SafetyPanel({
-  joinedCount,
+  applications,
+  user,
+  onUserChange,
   embedded = false,
 }: {
-  joinedCount: number;
+  applications: ApplicationSummary[];
+  user: ApiUser | null;
+  onUserChange: (user: ApiUser | null) => void;
   embedded?: boolean;
 }) {
+  const approvedApp = applications.find((app) => app.status === "APPROVED");
   const [panicState, setPanicState] = useState("Не активирована");
   const [checkInState, setCheckInState] = useState("Ожидает встречи");
-  const [trustedContact, setTrustedContact] = useState("Алина, +7 900 000-00-00");
+  const [trustedContact, setTrustedContact] = useState(user?.profile?.trustedContact ?? "");
+  const [feedbackRating, setFeedbackRating] = useState(4);
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [feedbackState, setFeedbackState] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTrustedContact(user?.profile?.trustedContact ?? "");
+  }, [user?.profile?.trustedContact]);
+
+  const saveTrustedContact = async () => {
+    if (!user) return;
+    const { user: next } = await updateProfile({ trustedContact: trustedContact || null });
+    onUserChange(next);
+  };
+
+  const handleCheckIn = async (status: "checked_in" | "left") => {
+    if (!approvedApp) {
+      setCheckInState("Нужна одобренная заявка");
+      return;
+    }
+    await submitCheckIn(approvedApp.groupId, status);
+    setCheckInState(status === "checked_in" ? "Я на месте" : "Вышел(а) из встречи");
+  };
+
+  const handlePanic = async () => {
+    if (!user) {
+      setPanicState("Войдите в аккаунт");
+      return;
+    }
+    await submitReport({
+      type: "PANIC",
+      groupId: approvedApp?.groupId,
+    });
+    setPanicState("Сигнал отправлен модератору");
+  };
+
+  const handleComplaint = async () => {
+    if (!user) return;
+    await submitReport({
+      type: "COMPLAINT",
+      groupId: approvedApp?.groupId,
+      message: "Жалоба из пилота",
+    });
+  };
+
+  const submitEventFeedback = async () => {
+    if (!approvedApp) return;
+    await submitFeedback({
+      groupId: approvedApp.groupId,
+      rating: feedbackRating,
+      comment: feedbackNote || undefined,
+    });
+    setFeedbackState("Спасибо! Оценка сохранена.");
+  };
+
+  const activeCount = applications.filter((a) => a.status === "PENDING" || a.status === "APPROVED").length;
 
   return (
     <div className={embedded ? "grid gap-4 lg:grid-cols-[1fr_420px]" : "mt-5 grid gap-4 lg:grid-cols-[1fr_420px]"}>
@@ -1456,49 +1631,49 @@ function SafetyPanel({
             <div>
               <h3 className="text-xl font-semibold">Контур безопасности офлайн-встречи</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Мок показывает, какие инструменты должны появиться до запуска встреч:
-                верификация, тревожная кнопка, чек-ин, доверенный контакт. Кнопки ниже{" "}
-                <strong className="text-foreground">не отправляют сигнал</strong> — только
-                меняют локальное состояние.
+                Пилот: группы в публичных местах, модерация заявок, чек-ин и эскалация тревоги
+                дежурному модератору.
               </p>
-              <Link
-                href="/safety"
-                className="mt-3 inline-flex text-sm text-primary hover:underline"
-              >
+              <Link href="/safety" className="mt-3 inline-flex text-sm text-primary hover:underline">
                 Полная политика безопасности и данных →
               </Link>
             </div>
           </div>
         </div>
 
+        {!user && <AuthPanel onUserChange={onUserChange} />}
+
         <div className="grid gap-4 md:grid-cols-2">
           <SafetyCard
             icon={UserCheck}
             title="Верификация"
-            status="Паспорт/студенческий: mock approved"
-            text="Профиль получает отметку только после проверки документа или учебной почты. До проверки нельзя создавать встречи один на один."
+            status="Email + ручная модерация"
+            text="На пилоте достаточно email и проверки модератором при одобрении заявки."
           />
           <SafetyCard
             icon={MapPin}
             title="Публичная точка"
-            status="Обязательное условие"
-            text="Встречи стартуют только в публичных местах: площадка, кафе, кинотеатр, музей, антикафе, спортивная студия."
+            status={approvedApp?.meetingPoint ? "Назначена" : "После одобрения"}
+            text={
+              approvedApp?.meetingPoint ??
+              "Точка встречи видна только после одобрения заявки модератором."
+            }
           />
           <SafetyCard
             icon={BellRing}
             title="Тревожная кнопка"
             status={panicState}
-            text="В продукте — эскалация модератору и доверенному контакту. В демо только меняется подпись, без отправки."
+            text="Эскалация модератору и доверенному контакту. При угрозе жизни — 112."
             action="Активировать"
-            onAction={() =>
-              setPanicState("Демо: сигнал не отправлен (только локальная подпись)")
-            }
+            onAction={() => void handlePanic()}
           />
           <SafetyCard
             icon={TriangleAlert}
-            title="Жалоба и блокировка"
-            status="Доступно после заявки"
-            text="Пользователь может пожаловаться на участника, скрыть свой профиль и запретить повторный мэтч."
+            title="Жалоба"
+            status="Доступно после входа"
+            text="Жалоба уходит модератору пилота."
+            action="Пожаловаться"
+            onAction={() => void handleComplaint()}
           />
         </div>
       </div>
@@ -1507,38 +1682,67 @@ function SafetyPanel({
         <div className="dvig-panel p-5">
           <h3 className="font-semibold">Мой safety-чеклист</h3>
           <div className="mt-4 space-y-3 text-sm">
-            <SafetyRow label="Активные заявки" value={`${joinedCount}`} />
-            <SafetyRow label="Доверенный контакт" value={trustedContact} />
+            <SafetyRow label="Активные заявки" value={`${activeCount}`} />
+            <SafetyRow label="Доверенный контакт" value={trustedContact || "Не указан"} />
             <SafetyRow label="Чек-ин" value={checkInState} />
-            <SafetyRow label="Страхование" value="MVP: не подключено, в плане партнерская опция" />
           </div>
           <div className="mt-4 grid gap-2">
             <Input
               value={trustedContact}
               onChange={(event) => setTrustedContact(event.target.value)}
               className="rounded-md"
+              placeholder="Доверенный контакт"
               aria-label="Доверенный контакт"
             />
-            <Button
-              className="dvig-btn-primary rounded-lg"
-              onClick={() => setCheckInState("Я на месте · 18 мая, 19:04")}
-            >
+            <Button variant="outline" className="rounded-md" onClick={() => void saveTrustedContact()}>
+              Сохранить контакт
+            </Button>
+            <Button className="dvig-btn-primary rounded-lg" onClick={() => void handleCheckIn("checked_in")}>
               <Check className="size-4" />
               Отметиться на месте
             </Button>
-            <Button variant="outline" className="rounded-md" onClick={() => setCheckInState("Вышла из встречи")}>
+            <Button variant="outline" className="rounded-md" onClick={() => void handleCheckIn("left")}>
               <LogOut className="size-4" />
               Выйти из встречи
             </Button>
           </div>
         </div>
 
+        {approvedApp && (
+          <div className="dvig-panel p-5">
+            <h3 className="font-semibold">Как прошло?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Оценка после check-in (1–5)</p>
+            <div className="mt-3 flex gap-2">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={feedbackRating === value ? "default" : "outline"}
+                  className="rounded-md"
+                  onClick={() => setFeedbackRating(value)}
+                >
+                  {value}
+                </Button>
+              ))}
+            </div>
+            <Input
+              className="mt-3 rounded-md"
+              placeholder="Комментарий (опционально)"
+              value={feedbackNote}
+              onChange={(e) => setFeedbackNote(e.target.value)}
+            />
+            <Button className="mt-3 w-full rounded-md" onClick={() => void submitEventFeedback()}>
+              Отправить оценку
+            </Button>
+            {feedbackState && <p className="mt-2 text-sm text-primary">{feedbackState}</p>}
+          </div>
+        )}
+
         <div className="rounded-md border border-border/50 bg-[#fff7ed] p-5">
-          <h3 className="font-semibold">Ограничение MVP</h3>
+          <h3 className="font-semibold">Пилот</h3>
           <p className="mt-2 text-sm leading-6 text-accent-foreground">
-            Это демонстрационный интерфейс. До реального запуска нужны юридическая
-            политика, обработка тревожных сигналов, модераторские регламенты и
-            понятное согласие на обработку геоданных.
+            Регламент: <Link href="/privacy" className="underline">политика ПДн</Link>, модератор на смене,
+            группы 5–7, только публичные места. См. PILOT_REGULATIONS.md в репозитории.
           </p>
         </div>
       </div>
@@ -1546,10 +1750,16 @@ function SafetyPanel({
   );
 }
 
-function ProfilePanel({ embedded = false }: { embedded?: boolean }) {
-  const [visibility, setVisibility] = useState("Профиль виден только подтвержденным участникам встреч");
+function ProfilePanel({
+  user,
+  activeApplications,
+  embedded = false,
+}: {
+  user: ApiUser | null;
+  activeApplications: number;
+  embedded?: boolean;
+}) {
   const [exportState, setExportState] = useState("Архив не запрошен");
-  const [deleteState, setDeleteState] = useState("Профиль активен");
 
   return (
     <div className={embedded ? "grid gap-4 lg:grid-cols-[1fr_420px]" : "mt-5 grid gap-4 lg:grid-cols-[1fr_420px]"}>
@@ -1557,25 +1767,19 @@ function ProfilePanel({ embedded = false }: { embedded?: boolean }) {
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-xl font-semibold">Профиль и цифровой след</h3>
           <Badge variant="outline" className="rounded-md">
-            Демо
+            Пилот
           </Badge>
         </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Пользователь должен понимать, какие данные остаются после заявок, чатов,
-          жалоб и выходов из встреч. В демо это показано как сценарии управления
-          данными.
+          Данные хранятся на сервере пилота. Заявки, check-in и жалобы — для модерации и метрик.
         </p>
-        <Link
-          href="/safety#data"
-          className="mt-3 inline-flex text-sm text-primary hover:underline"
-        >
+        <Link href="/safety#data" className="mt-3 inline-flex text-sm text-primary hover:underline">
           Что хранится и удаляется →
         </Link>
         <div className="mt-5 grid gap-3">
-          <TraceItem title="Профиль" value="имя, возраст, интересы, верификация, аватар" />
-          <TraceItem title="События" value="сохраненные карточки, заявки, чек-ины и отмены" />
-          <TraceItem title="Безопасность" value="жалобы, блокировки, тревожные события и модераторские решения" />
-          <TraceItem title="Аналитика" value="обезличенные категории спроса для улучшения рекомендаций" />
+          <TraceItem title="Профиль" value="имя, интересы, город, доверенный контакт" />
+          <TraceItem title="События" value="заявки, check-in, оценки после встречи" />
+          <TraceItem title="Безопасность" value="жалобы и тревожные сигналы с ограниченным сроком хранения" />
         </div>
       </div>
 
@@ -1583,45 +1787,23 @@ function ProfilePanel({ embedded = false }: { embedded?: boolean }) {
         <div className="dvig-panel p-5">
           <h3 className="font-semibold">Управление аккаунтом</h3>
           <div className="mt-4 space-y-3 text-sm">
-            <SafetyRow label="Видимость" value={visibility} />
+            <SafetyRow label="Активные заявки" value={`${activeApplications}`} />
             <SafetyRow label="Экспорт данных" value={exportState} />
-            <SafetyRow label="Удаление" value={deleteState} />
+            <SafetyRow label="Аккаунт" value={user?.email ?? "Не выполнен вход"} />
           </div>
           <div className="mt-4 grid gap-2">
             <Button
               variant="outline"
               className="rounded-md"
-              onClick={() => setVisibility("Профиль скрыт от новых подборок и поиска")}
-            >
-              <EyeOff className="size-4" />
-              Скрыть профиль
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-md"
-              onClick={() => setExportState("Архив готовится: профиль, заявки, события, жалобы")}
+              onClick={() => setExportState("Запрос принят — свяжемся по email в течение 7 дней")}
             >
               <FileText className="size-4" />
               Запросить архив данных
             </Button>
-            <Button
-              className="rounded-lg bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => setDeleteState("Запрос на удаление создан · 30 дней на отмену")}
-            >
-              <Trash2 className="size-4" />
-              Удалить профиль
-            </Button>
+            <Link href="/privacy" className="text-sm text-primary hover:underline">
+              Политика конфиденциальности
+            </Link>
           </div>
-        </div>
-
-        <div className="dvig-panel-muted p-5">
-          <h3 className="font-semibold">Что останется после удаления</h3>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-            <li>личный профиль, фото, интересы и контакты удаляются;</li>
-            <li>заявки и чаты обезличиваются для истории модерации;</li>
-            <li>жалобы и safety-события хранятся ограниченный срок;</li>
-            <li>партнерская аналитика остается только в агрегированном виде.</li>
-          </ul>
         </div>
       </div>
     </div>

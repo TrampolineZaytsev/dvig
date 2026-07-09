@@ -44,6 +44,11 @@ export type DvigEvent = {
   imageUrl?: string;
   aiSummary: AiSummary;
   priceOptions: PriceOption[];
+  groupId?: string;
+  hasRealGroup?: boolean;
+  applicationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  meetingPoint?: string | null;
+  telegramLink?: string | null;
 };
 
 export const categoryFilters = ["Кино", "Настолки", "Культура", "Спорт"] as const;

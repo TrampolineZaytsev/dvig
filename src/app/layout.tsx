@@ -22,7 +22,7 @@ const ralewayHeading = Raleway({
 export const metadata: Metadata = {
   title: "ДВИГ — компания на события, не dating",
   description:
-    "Демо-пилот ДВИГ: афиша KudaGo (СПб), мок групп и заявок. Дело → люди → офлайн.",
+    "Пилот B2C ДВИГ: афиша KudaGo (СПб), реальные группы, заявки и модерация. Дело → люди → офлайн.",
 };
 
 export default function RootLayout({

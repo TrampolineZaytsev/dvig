@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
+import { pilotConfig } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Партнёрам — ДВИГ",
@@ -86,12 +87,14 @@ export default function PartnersPage() {
           <h2 className="text-2xl font-bold">Контакт пилота</h2>
           <p className="mt-3 text-muted-foreground">
             Напишите команде:{" "}
-            <a href="mailto:pilot@dvig.app" className="text-primary hover:underline">
-              pilot@dvig.app
+            <a href={`mailto:${pilotConfig.email}`} className="text-primary hover:underline">
+              {pilotConfig.email}
             </a>{" "}
             или в Telegram{" "}
-            <span className="text-foreground">@dvig_pilot</span> (placeholder — уточним перед
-            запуском).
+            <a href={pilotConfig.telegramUrl} className="text-foreground hover:underline">
+              {pilotConfig.telegram}
+            </a>
+            .
           </p>
         </section>
 
@@ -99,7 +102,7 @@ export default function PartnersPage() {
           href="/app"
           className="dvig-btn-primary mt-10 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
         >
-          Открыть демо афиши
+          Открыть приложение
           <ArrowRight className="size-4" />
         </Link>
       </article>

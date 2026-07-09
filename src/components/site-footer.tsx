@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 const footerLinks = [
-  { href: "/app", label: "Демо" },
+  { href: "/app", label: "Приложение" },
   { href: "/safety", label: "Безопасность" },
   { href: "/partners", label: "Партнёрам" },
+  { href: "/privacy", label: "Политика ПДн" },
+  { href: "/terms", label: "Условия" },
 ] as const;
 
 export function SiteFooter() {
@@ -22,7 +24,7 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
-        <span className="text-xs sm:text-right">Афиша: KudaGo · Социальный слой: демо</span>
+        <span className="text-xs sm:text-right">Афиша: KudaGo · Пилот B2C · СПб</span>
       </div>
     </footer>
   );
