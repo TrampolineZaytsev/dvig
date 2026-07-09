@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { usePilotData } from "@/hooks/use-pilot-data";
+import { useSelectedCity } from "@/hooks/use-selected-city";
 import { trackEvent } from "@/lib/client/api-client";
 import {
   buildTelegramDigest,
@@ -47,6 +48,7 @@ export function EventBrowser() {
     userOwnsGroupForEvent,
     refreshSocial,
   } = usePilotData();
+  const { city } = useSelectedCity();
 
   const [view, setView] = useState<AppView>("search");
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
@@ -95,6 +97,7 @@ export function EventBrowser() {
           selectedDates,
           customDateRange,
           query,
+          location: city.kudagoLocation,
         });
         if (cancelled) {
           return;
@@ -114,7 +117,7 @@ export function EventBrowser() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [selectedCategories, extraCategorySlugs, selectedDates, customDateRange, query, mergeEvents]);
+  }, [selectedCategories, extraCategorySlugs, selectedDates, customDateRange, query, mergeEvents, city.kudagoLocation]);
 
   const enrichedEvents = useMemo(() => mergeEvents(events), [events, mergeEvents]);
 
@@ -245,7 +248,7 @@ export function EventBrowser() {
         className="sticky top-0 z-30 border-b border-primary/20 bg-[#1a1028]/95 px-4 py-2.5 text-center text-sm backdrop-blur-md sm:px-6"
         role="status"
       >
-        Пилот B2C · СПб. Афиша KudaGo + реальные группы и заявки. Безопасность и модерация — по регламенту пилота.
+        Пилот B2C · {city.name}. Афиша KudaGo + реальные группы и заявки. Безопасность и модерация — по регламенту пилота.
       </div>
 
       {user && <OnboardingDialog user={user} onComplete={setUser} />}
@@ -308,6 +311,7 @@ export function EventBrowser() {
                   selectedDates,
                   customDateRange,
                   query,
+                  location: city.kudagoLocation,
                 }).then((result) => {
                   if (result.error) {
                     setFetchError(result.error);

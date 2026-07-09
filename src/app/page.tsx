@@ -117,7 +117,7 @@ export default function Home() {
                 href="/app"
                 className="dvig-btn-primary inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
               >
-                Открыть приложение
+                Выбрать мероприятие
                 <ArrowRight className="size-4" />
               </Link>
               <a

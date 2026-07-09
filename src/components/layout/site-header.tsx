@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { HeaderAuthButton } from "@/components/layout/header-auth-button";
+import { CityPicker } from "@/components/layout/city-picker";
 
 const navLinks = [
   { href: "/app", label: "Приложение" },
@@ -22,7 +23,7 @@ export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
             />
             <span className="text-2xl font-bold tracking-tight">ДВИГ</span>
           </Link>
-          <Badge className="dvig-badge shrink-0">Пилот · СПб</Badge>
+          <CityPicker />
         </div>
 
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -36,6 +37,7 @@ export function SiteHeader({ trailing }: { trailing?: ReactNode }) {
             </Link>
           ))}
           {trailing}
+          <HeaderAuthButton />
         </nav>
       </div>
     </header>

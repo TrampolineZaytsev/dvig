@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get("dateFrom") ?? undefined;
     const dateTo = searchParams.get("dateTo") ?? undefined;
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 40));
+    const location = searchParams.get("location")?.trim() || "spb";
 
     const { actualSince, actualUntil } = resolveDateRange(
       datePreset,
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
     );
 
     const payload = await searchKudagoEvents({
+      location,
       categories: slugs,
       actualSince,
       actualUntil,
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
       events,
       meta: {
         source: "kudago",
+        location,
         count: events.length,
         fetchedAt: new Date().toISOString(),
         categories: slugs,

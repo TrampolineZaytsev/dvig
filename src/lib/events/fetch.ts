@@ -16,6 +16,7 @@ export type FetchEventsParams = {
   customDateRange: CustomDateRange | null;
   query: string;
   limit?: number;
+  location?: string;
 };
 
 export async function fetchDvigEvents(
@@ -43,6 +44,10 @@ export async function fetchDvigEvents(
   }
 
   search.set("limit", String(params.limit ?? 40));
+
+  if (params.location) {
+    search.set("location", params.location);
+  }
 
   const response = await fetch(`/api/events?${search.toString()}`);
   const data = await response.json();
