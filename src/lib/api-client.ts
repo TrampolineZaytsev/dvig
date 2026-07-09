@@ -171,6 +171,36 @@ export async function moderateApplication(applicationId: string, status: "APPROV
   });
 }
 
+export async function createGroup(input: {
+  kudagoEventId: number;
+  eventTitle: string;
+  eventDate: string;
+  capacity?: number;
+  meetingPoint?: string;
+  telegramLink?: string;
+}) {
+  return api<{ group: GroupSummary }>("/api/groups", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchMyGroups() {
+  return api<{
+    groups: Array<
+      GroupSummary & {
+        pendingApplications: Array<{
+          id: string;
+          status: ApplicationStatus;
+          message: string | null;
+          createdAt: string;
+          user: { id: string; displayName: string; email: string };
+        }>;
+      }
+    >;
+  }>("/api/groups/mine");
+}
+
 export async function createPilotGroup(input: {
   kudagoEventId: number;
   eventTitle: string;

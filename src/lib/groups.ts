@@ -75,35 +75,61 @@ export function mergeEventWithGroups<T extends {
   groupCapacity: number;
   moderator: string;
   groupId?: string;
+  place?: string;
 }>(
   event: T,
   groups: GroupSummary[],
-  applicationByEventId?: Map<number, ApplicationSummary>
-): T & { hasRealGroup: boolean; applicationStatus?: Application["status"] } {
-  const eventGroups = groups.filter((g) => g.kudagoEventId === event.kudagoId);
-  const primary = eventGroups[0];
+  applications?: ApplicationSummary[]
+): T & {
+  hasRealGroup: boolean;
+  groupsCount: number;
+  applicationStatus?: Application["status"] | string;
+  availableGroups: GroupSummary[];
+} {
+  const eventGroups = groups
+    .filter((g) => g.kudagoEventId === event.kudagoId && g.spotsLeft > 0)
+    .sort((a, b) => b.spotsLeft - a.spotsLeft);
 
-  if (!primary) {
+  const allEventGroups = groups.filter((g) => g.kudagoEventId === event.kudagoId);
+  const userApps = (applications ?? []).filter((app) =>
+    allEventGroups.some((group) => group.id === app.groupId)
+  );
+  const activeApp = userApps.find((app) => app.status === "PENDING" || app.status === "APPROVED");
+
+  if (eventGroups.length === 0 && allEventGroups.length === 0) {
     return {
       ...event,
       spotsLeft: 0,
       participants: 0,
       groupCapacity: event.groupCapacity,
-      moderator: "Группа не открыта",
+      moderator: "Создайте группу или дождитесь других",
       hasRealGroup: false,
+      groupsCount: 0,
+      availableGroups: [],
+      applicationStatus: activeApp?.status,
+      groupId: activeApp?.groupId,
     };
   }
 
-  const application = event.kudagoId ? applicationByEventId?.get(event.kudagoId) : undefined;
+  const primary = eventGroups[0] ?? allEventGroups[0];
+  const totalSpots = eventGroups.reduce((sum, group) => sum + group.spotsLeft, 0);
+  const totalParticipants = allEventGroups.reduce((sum, group) => sum + group.participants, 0);
 
   return {
     ...event,
-    groupId: primary.id,
-    spotsLeft: primary.spotsLeft,
-    participants: primary.participants,
+    groupId: activeApp?.groupId ?? primary.id,
+    spotsLeft: totalSpots,
+    participants: totalParticipants,
     groupCapacity: primary.capacity,
-    moderator: primary.moderatorName,
-    hasRealGroup: true,
-    applicationStatus: application?.status,
+    moderator:
+      allEventGroups.length > 1
+        ? `${allEventGroups.length} группы`
+        : primary.moderatorName,
+    hasRealGroup: allEventGroups.length > 0,
+    groupsCount: allEventGroups.length,
+    availableGroups: allEventGroups,
+    applicationStatus: activeApp?.status,
+    meetingPoint: activeApp?.status === "APPROVED" ? activeApp.meetingPoint : undefined,
+    telegramLink: activeApp?.status === "APPROVED" ? activeApp.telegramLink : undefined,
   };
 }

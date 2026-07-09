@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { getSessionUser, requireModerator } from "@/lib/auth";
+import { getSessionUser, getUserWithProfile, requireSessionUser } from "@/lib/auth";
 import { buildGroupSummary } from "@/lib/groups";
 import { prisma } from "@/lib/db";
 
@@ -11,8 +11,14 @@ const createGroupSchema = z.object({
   eventTitle: z.string().min(3),
   eventDate: z.string().datetime(),
   capacity: z.number().int().min(5).max(15).default(7),
-  meetingPoint: z.string().min(3).max(200).optional(),
-  telegramLink: z.string().url().optional(),
+  meetingPoint: z.string().max(200).optional(),
+  telegramLink: z
+    .string()
+    .max(300)
+    .optional()
+    .refine((value) => !value || value.startsWith("http"), {
+      message: "Ссылка должна начинаться с http",
+    }),
 });
 
 export async function GET(request: NextRequest) {
@@ -60,26 +66,74 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const moderator = await requireModerator();
+    const session = await requireSessionUser();
+    const user = await getUserWithProfile(session.id);
+    if (!user?.profile?.onboardingDone) {
+      return jsonError("Завершите онбординг профиля", 400);
+    }
+
     const body = createGroupSchema.parse(await request.json());
 
-    const group = await prisma.group.create({
-      data: {
+    const existingGroup = await prisma.group.findFirst({
+      where: {
         kudagoEventId: body.kudagoEventId,
-        eventTitle: body.eventTitle,
-        eventDate: new Date(body.eventDate),
-        capacity: body.capacity,
-        meetingPoint: body.meetingPoint,
-        telegramLink: body.telegramLink,
-        moderatorId: moderator.id,
+        moderatorId: session.id,
+        status: { in: ["OPEN", "FULL"] },
       },
-      include: {
-        moderator: { include: { profile: true } },
-        applications: { include: { user: { include: { profile: true } } } },
+    });
+    if (existingGroup) {
+      return jsonError("У вас уже есть группа на это событие", 409);
+    }
+
+    const group = await prisma.$transaction(async (tx) => {
+      const created = await tx.group.create({
+        data: {
+          kudagoEventId: body.kudagoEventId,
+          eventTitle: body.eventTitle,
+          eventDate: new Date(body.eventDate),
+          capacity: body.capacity,
+          meetingPoint: body.meetingPoint?.trim() || null,
+          telegramLink: body.telegramLink?.trim() || null,
+          moderatorId: session.id,
+        },
+        include: {
+          moderator: { include: { profile: true } },
+          applications: { include: { user: { include: { profile: true } } } },
+        },
+      });
+
+      await tx.application.create({
+        data: {
+          userId: session.id,
+          groupId: created.id,
+          status: "APPROVED",
+        },
+      });
+
+      return tx.group.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          moderator: { include: { profile: true } },
+          applications: {
+            where: { status: "APPROVED" },
+            include: { user: { include: { profile: true } } },
+          },
+        },
+      });
+    });
+
+    await prisma.analyticsEvent.create({
+      data: {
+        userId: session.id,
+        name: "group_created",
+        payload: JSON.stringify({ groupId: group.id, kudagoEventId: body.kudagoEventId }),
       },
     });
 
-    return jsonOk({ group: buildGroupSummary(group, { includeMembers: true, viewerApproved: true }) }, { status: 201 });
+    return jsonOk(
+      { group: buildGroupSummary(group, { includeMembers: true, viewerApproved: true }) },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return jsonError(error.issues[0]?.message ?? "Некорректные данные");

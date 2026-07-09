@@ -2,9 +2,16 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { jsonError, jsonOk, handleApiError } from "@/lib/api";
-import { requireModerator } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { notifyApplicationApproved } from "@/lib/applications";
 import { prisma } from "@/lib/db";
+
+async function canModerateApplication(userId: string, role: string, groupModeratorId: string) {
+  if (role === "MODERATOR" || role === "ADMIN") {
+    return true;
+  }
+  return userId === groupModeratorId;
+}
 
 const patchSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED"]),
@@ -15,7 +22,11 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireModerator();
+    const session = await getSessionUser();
+    if (!session) {
+      return jsonError("Требуется вход", 401);
+    }
+
     const { id } = await context.params;
     const body = patchSchema.parse(await request.json());
 
@@ -30,6 +41,10 @@ export async function PATCH(
 
     if (!application) {
       return jsonError("Заявка не найдена", 404);
+    }
+
+    if (!(await canModerateApplication(session.id, session.role, application.group.moderatorId))) {
+      return jsonError("Недостаточно прав", 403);
     }
 
     if (body.status === "APPROVED") {

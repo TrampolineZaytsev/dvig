@@ -57,11 +57,12 @@ import {
 } from "@/components/ui/sheet";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { KudagoCategoryPicker } from "@/components/kudago-category-picker";
+import { GroupSocialPanel } from "@/components/group-social-panel";
 import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { AuthPanel } from "@/components/auth-panel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { usePilotData } from "@/hooks/use-pilot-data";
+import { usePilotData, type MyGroupWithPending } from "@/hooks/use-pilot-data";
 import type { ApiUser } from "@/lib/api-client";
 import {
   submitCheckIn,
@@ -86,7 +87,7 @@ import {
   formatCustomDateRangeLabel,
 } from "@/lib/event-dates";
 import { fetchDvigEvents } from "@/lib/fetch-events";
-import type { ApplicationSummary } from "@/lib/groups";
+import type { ApplicationSummary, GroupSummary } from "@/lib/groups";
 
 type AppView = "search" | "profile" | "collection" | "friends" | "settings";
 type DatePreset = (typeof dateFilters)[number];
@@ -142,9 +143,15 @@ export function EventBrowser() {
     setUser,
     authLoading,
     applications,
+    myGroups,
     mergeEvents,
+    groupsForEvent,
     submitApplication,
+    submitApplicationToGroup,
+    createGroupForEvent,
+    approveApplication,
     isJoined,
+    userOwnsGroupForEvent,
     refreshSocial,
   } = usePilotData();
 
@@ -279,15 +286,30 @@ export function EventBrowser() {
     });
   };
 
-  const toggleJoined = async (event: DvigEvent) => {
+  const handleQuickJoin = async (event: DvigEvent) => {
+    if (isJoined(event)) {
+      setJoinNotice("Заявка уже отправлена. Статус — в профиле.");
+      window.setTimeout(() => setJoinNotice(null), 4500);
+      return;
+    }
+
+    const openGroups = (event.availableGroups ?? []).filter(
+      (group) => group.status === "OPEN" && group.spotsLeft > 0
+    );
+
+    if (openGroups.length === 0) {
+      setSelected(event);
+      return;
+    }
+
+    if (openGroups.length > 1) {
+      setSelected(event);
+      return;
+    }
+
     try {
-      if (isJoined(event)) {
-        setJoinNotice("Заявка уже отправлена. Статус — в профиле.");
-        window.setTimeout(() => setJoinNotice(null), 4500);
-        return;
-      }
-      await submitApplication(event);
-      setJoinNotice("Заявка отправлена. Модератор рассмотрит её в течение 24 часов.");
+      await submitApplicationToGroup(openGroups[0].id, event.kudagoId);
+      setJoinNotice("Заявка отправлена. Организатор рассмотрит её.");
       window.setTimeout(() => setJoinNotice(null), 5000);
       void refreshSocial();
     } catch (err) {
@@ -384,7 +406,7 @@ export function EventBrowser() {
               isJoined={isJoined}
               onOpen={setSelected}
               onSave={toggleSaved}
-              onJoin={toggleJoined}
+              onJoin={handleQuickJoin}
               onRetry={() => {
                 setLoading(true);
                 void fetchDvigEvents({
@@ -413,7 +435,9 @@ export function EventBrowser() {
               authLoading={authLoading}
               savedCount={saved.length}
               applications={applications}
+              myGroups={myGroups}
               onUserChange={setUser}
+              onApproveApplication={(id, status) => void approveApplication(id, status)}
             />
           )}
 
@@ -441,11 +465,28 @@ export function EventBrowser() {
 
       <EventSheet
         event={selected}
+        user={user}
         isSaved={selected ? saved.includes(selected.id) : false}
         isJoined={selected ? isJoined(selected) : false}
+        groups={selected ? groupsForEvent(selected.kudagoId) : []}
+        userOwnsGroup={selected ? userOwnsGroupForEvent(selected.kudagoId) : false}
         onClose={() => setSelected(null)}
         onSave={(event) => toggleSaved(event)}
-        onJoin={(event) => void toggleJoined(event)}
+        onJoinGroup={async (groupId) => {
+          if (!selected) return;
+          await submitApplicationToGroup(groupId, selected.kudagoId);
+          setJoinNotice("Заявка отправлена. Организатор рассмотрит её.");
+          window.setTimeout(() => setJoinNotice(null), 5000);
+          void refreshSocial();
+        }}
+        onCreateGroup={async (input) => {
+          if (!selected) return;
+          await createGroupForEvent(selected, input);
+          setJoinNotice("Группа создана. Вы — организатор и уже в группе.");
+          window.setTimeout(() => setJoinNotice(null), 5000);
+          void refreshSocial();
+        }}
+        onRequireAuth={() => setView("profile")}
         onExportJson={(event) =>
           downloadFile([event], "json", `dvig-${event.id}`)
         }
@@ -905,13 +946,17 @@ function ProfileView({
   authLoading,
   savedCount,
   applications,
+  myGroups,
   onUserChange,
+  onApproveApplication,
 }: {
   user: ApiUser | null;
   authLoading: boolean;
   savedCount: number;
   applications: ApplicationSummary[];
+  myGroups: MyGroupWithPending[];
   onUserChange: (user: ApiUser | null) => void;
+  onApproveApplication: (applicationId: string, status: "APPROVED" | "REJECTED") => void;
 }) {
   const activeApplications = applications.filter(
     (app) => app.status === "PENDING" || app.status === "APPROVED"
@@ -979,6 +1024,38 @@ function ProfileView({
                 )}
               </div>
             ))}
+          </div>
+        )}
+        {myGroups.some((group) => group.pendingApplications.length > 0) && (
+          <div className="mt-6 space-y-3">
+            <h3 className="font-semibold">Заявки в мои группы</h3>
+            {myGroups.map((group) =>
+              group.pendingApplications.map((app) => (
+                <div key={app.id} className="dvig-panel-muted rounded-md p-3 text-sm">
+                  <p className="font-medium">{group.eventTitle}</p>
+                  <p>
+                    {app.user.displayName} · {app.user.email}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-md"
+                      onClick={() => onApproveApplication(app.id, "APPROVED")}
+                    >
+                      Одобрить
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-md"
+                      onClick={() => onApproveApplication(app.id, "REJECTED")}
+                    >
+                      Отклонить
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
         {(user.role === "MODERATOR" || user.role === "ADMIN") && (
@@ -1099,20 +1176,34 @@ function EventGrid({
 
 function EventSheet({
   event,
+  user,
   isSaved,
   isJoined,
+  groups,
+  userOwnsGroup,
   onClose,
   onSave,
-  onJoin,
+  onJoinGroup,
+  onCreateGroup,
+  onRequireAuth,
   onExportJson,
   onExportCsv,
 }: {
   event: DvigEvent | null;
+  user: ApiUser | null;
   isSaved: boolean;
   isJoined: boolean;
+  groups: GroupSummary[];
+  userOwnsGroup: boolean;
   onClose: () => void;
   onSave: (event: DvigEvent) => void;
-  onJoin: (event: DvigEvent) => void;
+  onJoinGroup: (groupId: string) => Promise<void>;
+  onCreateGroup: (input: {
+    meetingPoint?: string;
+    telegramLink?: string;
+    capacity?: number;
+  }) => Promise<void>;
+  onRequireAuth: () => void;
   onExportJson: (event: DvigEvent) => void;
   onExportCsv: (event: DvigEvent) => void;
 }) {
@@ -1253,23 +1344,22 @@ function EventSheet({
                 <MapPin className="size-4" />
                 {event.place}, {event.address}
               </div>
+              <GroupSocialPanel
+                event={event}
+                user={user}
+                groups={groups}
+                userOwnsGroup={userOwnsGroup}
+                onJoinGroup={onJoinGroup}
+                onCreateGroup={onCreateGroup}
+                onRequireAuth={onRequireAuth}
+              />
             </div>
             <SheetFooter className="flex-col gap-2 sm:flex-col">
-              <Button
-                className="dvig-btn-primary w-full rounded-lg"
-                onClick={() => onJoin(event)}
-              >
-                {isJoined ? (
-                  <>
-                    <Check className="size-4" />
-                    {event.applicationStatus === "APPROVED" ? "Вы в группе" : "Заявка отправлена"}
-                  </>
-                ) : event.hasRealGroup ? (
-                  "Подать заявку"
-                ) : (
-                  "Группа скоро откроется"
-                )}
-              </Button>
+              {isJoined && (
+                <div className="w-full rounded-md border border-primary/30 bg-primary/10 px-4 py-2 text-center text-sm">
+                  {event.applicationStatus === "APPROVED" ? "Вы в группе" : "Заявка отправлена"}
+                </div>
+              )}
               <Button
                 variant="outline"
                 className="w-full rounded-md"
@@ -1328,6 +1418,19 @@ function EventCard({
 
   const groupLine = formatGroupLine(event);
   const kudagoEngagement = `♥ ${event.popularityScore} · 💬 ${event.commentsCount ?? 0}`;
+  const canQuickJoin =
+    !isJoined &&
+    event.hasRealGroup &&
+    (event.groupsCount ?? 0) === 1 &&
+    (event.availableGroups ?? []).some((group) => group.status === "OPEN" && group.spotsLeft > 0);
+
+  const handlePrimaryAction = () => {
+    if (canQuickJoin) {
+      onJoin();
+      return;
+    }
+    onOpen();
+  };
 
   return (
     <Card
@@ -1376,17 +1479,16 @@ function EventCard({
           </span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button className="dvig-btn-primary rounded-lg" onClick={onJoin} disabled={!event.hasRealGroup}>
-            {isJoined ? (
-              <>
-                <Check className="size-4" />
-                {event.applicationStatus === "APPROVED" ? "Вы в группе" : "Заявка отправлена"}
-              </>
-            ) : event.hasRealGroup ? (
-              "Подать заявку"
-            ) : (
-              "Группа скоро откроется"
-            )}
+          <Button className="dvig-btn-primary rounded-lg" onClick={handlePrimaryAction}>
+            {isJoined
+              ? event.applicationStatus === "APPROVED"
+                ? "Вы в группе"
+                : "Заявка отправлена"
+              : event.hasRealGroup
+                ? event.groupsCount && event.groupsCount > 1
+                  ? "Выбрать группу"
+                  : "Присоединиться"
+                : "Создать / вступить"}
           </Button>
           <Button variant="outline" className="rounded-md" onClick={onOpen}>
             Подробнее
